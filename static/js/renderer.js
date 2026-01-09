@@ -5,83 +5,9 @@ class Renderer {
     constructor() { }
 
     // Main render function
-    // Main render function
-    render(content, targetElement, type = 'latex', desmosId = null) {
+    render(content, targetElement) {
         this._clearError(targetElement);
-        targetElement.innerHTML = '';
-
-        let promise = Promise.resolve();
-
-        if (desmosId || type === 'desmos') {
-            const dContainer = document.createElement('div');
-            // Ensure container takes full width/height if it's the only thing, or fixed height if mixed
-            dContainer.style.width = '100%';
-            if (content && content.trim()) {
-                dContainer.style.height = '100%'; // Always full height for now, user can scroll if needed
-                dContainer.style.marginBottom = '0';
-            } else {
-                dContainer.style.height = '100%';
-            }
-            targetElement.appendChild(dContainer);
-
-            // Allow content to be the ID if type is desmos
-            const id = desmosId || content;
-            promise = promise.then(() => this.renderDesmos(id, dContainer));
-        }
-
-        if (content && type !== 'desmos') {
-            const lContainer = document.createElement('div');
-            lContainer.className = 'scale-wrapper'; // Use wrapper for scaling
-            targetElement.appendChild(lContainer);
-            promise = promise.then(() => this.renderLatex(content, lContainer));
-        } else if (content && type === 'mixed') {
-            // Mixed case where content is raw latex
-            const lContainer = document.createElement('div');
-            targetElement.appendChild(lContainer);
-            promise = promise.then(() => this.renderLatex(content, lContainer));
-        } else if (type === 'group') {
-            // Render a mini split view preview for the card
-            // We expect 'content' to actually be the entry object or children array passed specially,
-            // but the renderer signature is (content, element, type).
-            // For now, let's just render a placeholder or text, 
-            // BUT actually the App renders the split view, so this is mostly for the CARD PREVIEW in the library.
-            targetElement.innerHTML = `<div style="display:flex; height:100%; align-items:center; justify-content:center; color:#666; font-size:0.9rem;">
-                <span style="font-size:1.5rem; margin-right:5px;">🗂️</span> Composite Card
-            </div>`;
-        }
-
-        return promise;
-    }
-
-    renderDesmos(content, element) {
-        element.innerHTML = '';
-
-        let graphId = content.trim();
-        // Simple extraction: if full URL, try to get ID. 
-        // Desmos URLs: https://www.desmos.com/calculator/id
-        const urlMatch = graphId.match(/calculator\/([a-zA-Z0-9]+)/);
-        if (urlMatch) {
-            graphId = urlMatch[1];
-        }
-
-        const wrapper = document.createElement('div');
-        wrapper.className = 'desmos-wrapper';
-        wrapper.style.width = '100%';
-        wrapper.style.height = '100%';
-        wrapper.style.display = 'flex';
-        wrapper.style.justifyContent = 'center';
-        wrapper.style.alignItems = 'center';
-
-        const iframe = document.createElement('iframe');
-        iframe.src = `https://www.desmos.com/calculator/${graphId}?embed`;
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
-        iframe.style.border = '0';
-        iframe.style.borderRadius = '8px';
-
-        wrapper.appendChild(iframe);
-        element.appendChild(wrapper);
-        return Promise.resolve();
+        return this.renderLatex(content, targetElement);
     }
 
     renderLatex(content, element) {

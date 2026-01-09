@@ -81,20 +81,15 @@ class FormulaLibrary {
         this.saveData();
     }
 
-    addEntry(unitId, title, rawLatex, desmosId = null, tags = []) {
+    addEntry(unitId, title, rawLatex, isTikZ = false, tags = []) {
         const unit = this.getUnit(unitId);
         if (!unit) return null;
-
-        let type = 'latex';
-        if (rawLatex && desmosId) type = 'mixed';
-        else if (desmosId) type = 'desmos';
 
         const newEntry = {
             id: 'f-' + Date.now(),
             title: title || 'Untitled',
-            raw: rawLatex || '',
-            desmosId: desmosId,
-            type: type,
+            raw: rawLatex,
+            isTikZ: isTikZ,
             tags: tags,
             createdAt: new Date().toISOString()
         };
