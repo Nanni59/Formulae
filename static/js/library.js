@@ -46,6 +46,11 @@ class FormulaLibrary {
         return this.data.units;
     }
 
+    getAllEntries() {
+        // Collects entries from all units into one flat array
+        return this.data.units.flatMap(u => u.entries);
+    }
+
     getUnit(unitId) {
         return this.data.units.find(u => u.id === unitId);
     }
@@ -59,6 +64,16 @@ class FormulaLibrary {
         this.data.units.push(newUnit);
         this.saveData();
         return newUnit;
+    }
+
+    renameUnit(unitId, newName) {
+        const unit = this.getUnit(unitId);
+        if (unit) {
+            unit.name = newName;
+            this.saveData();
+            return true;
+        }
+        return false;
     }
 
     deleteUnit(unitId) {
@@ -101,6 +116,40 @@ class FormulaLibrary {
         if (!unit) return false;
 
         unit.entries = unit.entries.filter(e => e.id !== entryId);
+        this.saveData();
+        return true;
+    }
+
+    reorderUnits(fromIndex, toIndex) {
+        if (fromIndex < 0 || fromIndex >= this.data.units.length || toIndex < 0 || toIndex >= this.data.units.length) return false;
+        const [movedUnit] = this.data.units.splice(fromIndex, 1);
+        this.data.units.splice(toIndex, 0, movedUnit);
+        this.saveData();
+        return true;
+    }
+
+    reorderEntries(unitId, fromIndex, toIndex) {
+        const unit = this.getUnit(unitId);
+        if (!unit) return false;
+        if (fromIndex < 0 || fromIndex >= unit.entries.length || toIndex < 0 || toIndex >= unit.entries.length) return false;
+
+        const [movedEntry] = unit.entries.splice(fromIndex, 1);
+        unit.entries.splice(toIndex, 0, movedEntry);
+        this.saveData();
+        return true;
+    }
+
+    moveEntryToUnit(entryId, sourceUnitId, targetUnitId) {
+        const sourceUnit = this.getUnit(sourceUnitId);
+        const targetUnit = this.getUnit(targetUnitId);
+
+        if (!sourceUnit || !targetUnit) return false;
+
+        const entryIndex = sourceUnit.entries.findIndex(e => e.id === entryId);
+        if (entryIndex === -1) return false;
+
+        const [entry] = sourceUnit.entries.splice(entryIndex, 1);
+        targetUnit.entries.push(entry);
         this.saveData();
         return true;
     }
