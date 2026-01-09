@@ -10,11 +10,14 @@ class App {
         this.renderer = new window.Renderer();
 
         this.state = {
-            currentUnitId: 'general', // Default to General
-            editingEntryId: null, // null = View Mode, ID = Edit Mode
-            viewingEntryId: null, // For view modal
+            currentUnitId: 'general',
+            editingEntryId: null,
+            viewingEntryId: null,
             isNew: false,
-            visibleEntries: [] // Track currently filtered entries for navigation
+            visibleEntries: [],
+            splitEntries: [],
+            selectedEntryIds: new Set(),
+            selectionMode: false
         };
 
         // DOM Elements
@@ -28,6 +31,10 @@ class App {
             // Edit Modal
             modal: document.getElementById('entry-modal'),
             modalTitle: document.getElementById('modal-title-input'),
+            modalType: document.getElementById('modal-type-input'),
+            modalContainerLatex: document.getElementById('input-container-latex'),
+            modalContainerDesmos: document.getElementById('input-container-desmos'),
+            modalDesmos: document.getElementById('modal-desmos-input'),
             modalRaw: document.getElementById('modal-raw-input'),
             modalPreview: document.getElementById('modal-preview-area'),
             modalSave: document.getElementById('btn-save-entry'),
@@ -37,13 +44,22 @@ class App {
             viewModal: document.getElementById('view-modal'),
             viewModalTitle: document.getElementById('view-modal-title'),
             viewModalContent: document.getElementById('view-modal-content'),
+            btnLinkView: document.getElementById('btn-link-view'), // New
             viewModalEditBtn: document.getElementById('btn-edit-view'),
             viewModalCloseBtn: document.getElementById('btn-close-view'),
             btnZoomIn: document.getElementById('btn-zoom-in'),
             btnZoomOut: document.getElementById('btn-zoom-out'),
 
             exportBtn: document.getElementById('btn-export'),
-            importInput: document.getElementById('file-import')
+            importInput: document.getElementById('file-import'),
+
+            // Selection & Context
+            contextMenu: document.getElementById('context-menu'),
+            selectionBar: document.getElementById('selection-bar'),
+            selectionCount: document.getElementById('selection-count'),
+            btnBulkSplit: document.getElementById('btn-bulk-split'),
+            btnBulkDelete: document.getElementById('btn-bulk-delete'),
+            btnBulkCancel: document.getElementById('btn-bulk-cancel')
         };
 
         this.currentZoom = 1;
@@ -52,9 +68,13 @@ class App {
     }
 
     init() {
+        console.log('🚀 App initializing...');
         this.renderSidebar();
         this.renderMainContent();
         this.attachListeners();
+        this.initContextMenu();
+        this.initSelectionBar();
+        console.log('✅ App initialized successfully');
     }
 
     attachListeners() {
@@ -100,8 +120,39 @@ class App {
         // Live Preview in Edit Modal
         if (this.els.modalRaw) {
             this.els.modalRaw.addEventListener('input', (e) => {
-                this.renderer.render(e.target.value, this.els.modalPreview);
+                if (this.els.modalType.value === 'latex') {
+                    this.renderer.render(e.target.value, this.els.modalPreview, 'latex');
+                }
             });
+        }
+
+        if (this.els.modalDesmos) {
+            this.els.modalDesmos.addEventListener('input', (e) => {
+                if (this.els.modalType.value === 'desmos') {
+                    this.renderer.render(e.target.value, this.els.modalPreview, 'desmos');
+                }
+            });
+        }
+
+        if (this.els.modalType) {
+            console.log('✅ Type selector found, attaching change listener');
+            this.els.modalType.addEventListener('change', (e) => {
+                const type = e.target.value;
+                console.log('🔄 Type changed to:', type);
+                if (type === 'latex') {
+                    this.els.modalContainerLatex.classList.remove('hidden');
+                    this.els.modalContainerDesmos.classList.add('hidden');
+                    console.log('📝 Showing LaTeX input');
+                    this.renderer.render(this.els.modalRaw.value, this.els.modalPreview, 'latex');
+                } else {
+                    this.els.modalContainerLatex.classList.add('hidden');
+                    this.els.modalContainerDesmos.classList.remove('hidden');
+                    console.log('📊 Showing Desmos input');
+                    this.renderer.render(this.els.modalDesmos.value, this.els.modalPreview, 'desmos');
+                }
+            });
+        } else {
+            console.error('❌ Type selector not found!');
         }
 
         // View Modal Controls
@@ -324,8 +375,19 @@ class App {
             if (!targetCard || !draggedCardId) return;
 
             const targetId = targetCard.dataset.id;
+            const unit = this.library.getUnit(this.state.currentUnitId);
+            const sourceEntry = unit.entries.find(e => e.id === draggedCardId);
+            const targetEntry = unit.entries.find(e => e.id === targetId);
+
+            if (!sourceEntry || !targetEntry) return;
+
+            // Combine in Split View if Shift is held
+            if (e.shiftKey && draggedCardId !== targetId) {
+                this.openSplitView([targetEntry, sourceEntry]);
+                return;
+            }
+
             if (draggedCardId !== targetId) {
-                const unit = this.library.getUnit(this.state.currentUnitId);
                 const fromIndex = unit.entries.findIndex(e => e.id === draggedCardId);
                 const toIndex = unit.entries.findIndex(e => e.id === targetId);
 
@@ -442,23 +504,53 @@ class App {
                 }
             };
 
+            // Context Menu Listener
+            card.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                // Select just this card for context actions
+                if (!this.state.selectionMode) {
+                    this.handleContextAction('select', entry.id); // Or trigger menu display
+                    // We want to show the graphical menu
+                    this.showContextMenu(e, entry.id);
+                } else {
+                    // In selection mode, toggle selection
+                    this.toggleSelection(entry.id);
+                }
+            });
+
             if (this.state.currentUnitId !== 'general') actions.append(delBtn);
-            if (this.library.getUnits().length > 1) actions.append(moveBtn); // Only show move if multiple units exist
-            actions.prepend(copyBtn);
+            if (this.library.getUnits().length > 1) actions.append(moveBtn);
+            if (entry.type !== 'desmos') actions.prepend(copyBtn); // Hide Copy LaTeX for Desmos
             header.append(actions);
 
             const preview = document.createElement('div');
             preview.className = 'card-preview';
 
             card.addEventListener('click', (e) => {
-                if (e.target.tagName !== 'BUTTON') this.openViewModal(entry);
+                if (e.target.tagName !== 'BUTTON') {
+                    if (this.state.selectionMode) {
+                        this.toggleSelection(entry.id);
+                    } else {
+                        this.openViewModal(entry);
+                    }
+                }
             });
+
+            card.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                this.openContextMenu(e, entry.id);
+            });
+
+            if (this.state.selectedEntryIds.has(entry.id)) {
+                card.classList.add('selected');
+            }
 
             card.append(header, preview);
             this.els.mainContent.append(card);
 
             // Render and then auto-scale preview
-            this.renderer.render(entry.raw, preview).then(() => {
+            this.renderer.render(entry.raw, preview, entry.type, entry.desmosId).then(() => {
+                if (entry.type === 'desmos') return;
                 const wrapper = preview.querySelector('.scale-wrapper');
                 if (wrapper) {
                     this.renderer.scaleContent(preview, wrapper, null, { isPreview: true });
@@ -467,28 +559,54 @@ class App {
         });
     }
 
-    openViewModal(entry) {
+    openViewModal(entry, ignoreLinks = false) {
+        if (!entry) return;
+
+        this.els.viewModalContent.innerHTML = '';
+        this.state.viewingEntryId = entry.id;
+
+        // Handle Group/Composite Entry
+        if (entry.type === 'group' && entry.children) {
+            this.state.splitEntries = [entry]; // We are viewing this single group entry
+            this.renderSplitView();
+            return;
+        }
+
+        // Check for Legacy Links (Backward Compatibility)
+        // ... (We can remove legacy link check if we want, but keeping it safe)
+        if (!ignoreLinks && entry.linkedWith) {
+            const unit = this.library.getUnit(this.state.currentUnitId);
+            let linkedEntry = null;
+            if (unit) {
+                linkedEntry = unit.entries.find(e => e.id === entry.linkedWith);
+            } else if (this.state.currentUnitId === 'general') {
+                linkedEntry = this.library.getAllEntries().find(e => e.id === entry.linkedWith);
+            }
+
+            if (linkedEntry) {
+                this.openSplitView([entry, linkedEntry]);
+                return;
+            }
+        }
+
+        // Normal Single Entry View
         this.state.viewingEntryId = entry.id;
         this.els.viewModalTitle.innerText = entry.title;
         this.els.viewModal.classList.add('visible');
 
-        this.renderer.render(entry.raw, this.els.viewModalContent).then(() => {
+        if (this.els.btnLinkView) this.els.btnLinkView.style.display = 'none';
+
+        this.renderer.render(entry.raw, this.els.viewModalContent, entry.type, entry.desmosId).then(() => {
+            if (entry.type === 'desmos') return;
             const wrapper = this.els.viewModalContent.querySelector('.scale-wrapper');
             if (wrapper) {
                 const performScale = () => {
                     const result = this.renderer.scaleContent(this.els.viewModalContent, wrapper, null, {
-                        padding: 80 // More padding for detailed view
+                        padding: 80
                     });
                     this.currentZoom = result.scale;
-                    this.minZoomLimit = result.fitWidthScale;
                 };
-
-                // Use RAF to ensure DOM is painted and dimensions are available
-                requestAnimationFrame(() => {
-                    performScale();
-                    // Backup: Run again shortly after to catch any font-loading layout shifts
-                    setTimeout(performScale, 50);
-                });
+                requestAnimationFrame(() => { performScale(); setTimeout(performScale, 50); });
             }
         });
 
@@ -520,27 +638,55 @@ class App {
 
     handleZoom(delta) {
         if (!this.els.viewModal.classList.contains('visible')) return;
-        const wrapper = this.els.viewModalContent.querySelector('.scale-wrapper');
-        if (!wrapper) return;
+        const wrappers = this.els.viewModalContent.querySelectorAll('.scale-wrapper');
+        if (wrappers.length === 0) return;
 
         const targetZoom = this.currentZoom + delta;
-        const result = this.renderer.scaleContent(this.els.viewModalContent, wrapper, targetZoom, {
-            minScale: this.minZoomLimit || 0.1
+        let lastResult = { scale: targetZoom }; // Default
+
+        wrappers.forEach(wrapper => {
+            lastResult = this.renderer.scaleContent(wrapper.parentElement, wrapper, targetZoom, {
+                minScale: this.minZoomLimit || 0.1
+            });
         });
-        this.currentZoom = result.scale;
+        this.currentZoom = lastResult.scale;
     }
 
     openModal(entry) {
         this.els.modal.classList.add('visible');
+
+        let type = 'latex';
+        let raw = '';
+        let desmosId = '';
+        let title = '';
+
         if (entry) {
-            this.state.editingEntryId = entry.id; this.state.isNew = false;
-            this.els.modalTitle.value = entry.title; this.els.modalRaw.value = entry.raw;
-            this.renderer.render(entry.raw, this.els.modalPreview);
+            this.state.editingEntryId = entry.id;
+            this.state.isNew = false;
+            title = entry.title;
+            type = entry.type || 'latex';
+            raw = entry.raw || '';
+            desmosId = entry.desmosId || '';
         } else {
-            this.state.editingEntryId = null; this.state.isNew = true;
-            this.els.modalTitle.value = ''; this.els.modalRaw.value = '';
-            this.els.modalPreview.innerHTML = 'Preview...';
+            this.state.editingEntryId = null;
+            this.state.isNew = true;
         }
+
+        this.els.modalTitle.value = title;
+        this.els.modalType.value = type;
+        this.els.modalRaw.value = raw;
+        if (this.els.modalDesmos) this.els.modalDesmos.value = desmosId;
+
+        // Force correct initial visibility
+        if (type === 'desmos') {
+            this.els.modalContainerLatex.classList.add('hidden');
+            this.els.modalContainerDesmos.classList.remove('hidden');
+        } else {
+            this.els.modalContainerLatex.classList.remove('hidden');
+            this.els.modalContainerDesmos.classList.add('hidden');
+        }
+
+        this.renderer.render(type === 'latex' ? raw : desmosId, this.els.modalPreview, type, desmosId);
     }
 
     closeModal() { this.els.modal.classList.remove('visible'); }
@@ -607,13 +753,336 @@ class App {
 
     saveEntry() {
         const title = this.els.modalTitle.value;
+        const type = this.els.modalType.value;
         const raw = this.els.modalRaw.value;
-        if (!title || !raw) return;
-        if (this.state.isNew) this.library.addEntry(this.state.currentUnitId, title, raw, false);
-        else this.library.updateEntry(this.state.currentUnitId, this.state.editingEntryId, { title, raw, isTikZ: false });
+        const desmosId = this.els.modalDesmos.value;
+
+        let contentValid = false;
+        if (type === 'latex' && raw) contentValid = true;
+        if (type === 'desmos' && desmosId) contentValid = true;
+
+        if (!title || !contentValid) return;
+
+        const entryData = {
+            title,
+            type,
+            raw: type === 'latex' ? raw : '',
+            desmosId: type === 'desmos' ? desmosId : null,
+        };
+
+        if (this.state.isNew) this.library.addEntry(this.state.currentUnitId, title, entryData.raw, entryData.desmosId, false);
+        else this.library.updateEntry(this.state.currentUnitId, this.state.editingEntryId, { ...entryData, isTikZ: false });
+
+        // Ensure type strictness in Library if needed, but updateEntry with object covers it.
+        // We need to ensure the stored type is correct. updateEntry handles it if we pass it? 
+        // library.js updateEntry merges props. So we must explicitly pass type.
+        this.library.updateEntry(this.state.currentUnitId, this.state.editingEntryId, { type });
+
         this.closeModal(); this.renderMainContent(); this.renderSidebar();
     }
-}
+
+    openSplitView(entries) {
+        // Sort: Desmos first (if present), then others
+        entries.sort((a, b) => {
+            if (a.type === 'desmos' && b.type !== 'desmos') return -1;
+            if (a.type !== 'desmos' && b.type === 'desmos') return 1;
+            return 0;
+        });
+
+        this.state.splitEntries = [...entries];
+        this.renderSplitView();
+    }
+
+    renderSplitView() {
+        const entries = this.state.splitEntries;
+        renderSplitView() {
+            let entries = this.state.splitEntries;
+
+            // Unpack Group for Display Purposes
+            // If we are viewing a single group, we want to render its children as panes
+            const viewingGroup = entries.length === 1 && entries[0].type === 'group';
+            if (viewingGroup) {
+                entries = entries[0].children;
+            }
+
+            if (entries.length === 0) {
+                this.els.viewModal.classList.remove('visible');
+                return;
+            }
+
+            // If we really just have one normal entry (and not viewing a group), switch to normal view
+            if (entries.length === 1 && !viewingGroup) {
+                this.openViewModal(entries[0]);
+                return;
+            }
+
+            this.state.viewingEntryId = entries[0].id;
+            this.els.viewModalTitle.innerText = "Split View";
+            this.els.viewModal.classList.add('visible');
+
+            if (this.els.btnLinkView) {
+                this.els.btnLinkView.style.display = 'inline-block';
+
+                // Check if we are viewing a group
+                const isGroup = entries.length === 1 && entries[0].type === 'group';
+
+                this.els.btnLinkView.innerText = isGroup ? '❌ Unlink' : '🔗 Link Cards';
+                this.els.btnLinkView.title = isGroup ? "Unmerge Cards" : "Merge into Composite Card";
+                this.els.btnLinkView.onclick = () => this.toggleConjoined();
+            }
+
+            this.els.viewModalContent.innerHTML = '';
+            const container = document.createElement('div');
+            container.style.display = 'flex';
+            container.style.flexDirection = 'row'; // Horizontal Split
+            container.style.height = '100%';
+            container.style.width = '100%';
+            this.els.viewModalContent.appendChild(container);
+
+            entries.forEach((entry, index) => {
+                const paneItem = document.createElement('div');
+                paneItem.className = 'split-pane-item';
+                // Add border-right to all but last
+                if (index < entries.length - 1) {
+                    paneItem.style.borderRight = '2px solid #eee';
+                    paneItem.style.borderBottom = 'none';
+                }
+
+                // Header
+                const header = document.createElement('div');
+                header.className = 'split-pane-header';
+                header.innerHTML = `<span>${entry.title}</span>`;
+
+                const btnRemove = document.createElement('button');
+                btnRemove.className = 'btn-remove-pane';
+                btnRemove.innerHTML = '&times;';
+                btnRemove.title = "Remove from Split View";
+                btnRemove.onclick = (e) => {
+                    e.stopPropagation();
+                    this.removeSplitEntry(entry.id);
+                };
+                header.appendChild(btnRemove);
+                paneItem.appendChild(header);
+
+                // Content
+                const contentPane = document.createElement('div');
+                contentPane.className = 'split-pane-content';
+                paneItem.appendChild(contentPane);
+                container.appendChild(paneItem);
+
+                // Render logic
+                this.renderer.render(entry.raw, contentPane, entry.type, entry.desmosId).then(() => {
+                    if (entry.type === 'desmos') {
+                        const dContainer = contentPane.querySelector('div');
+                        if (dContainer) dContainer.style.height = '100%';
+                        return;
+                    }
+                    const wrapper = contentPane.querySelector('.scale-wrapper');
+                    if (wrapper) {
+                        // Add slight padding compensation for header
+                        const performScale = () => {
+                            this.renderer.scaleContent(contentPane, wrapper, null, { padding: 40 });
+                        };
+                        requestAnimationFrame(() => { performScale(); setTimeout(performScale, 50); });
+                    }
+                });
+            });
+        }
+
+        removeSplitEntry(entryId) {
+            this.state.splitEntries = this.state.splitEntries.filter(e => e.id !== entryId);
+            this.renderSplitView();
+        }
+
+        // --- Context Menu & Selection Logic ---
+
+        initContextMenu() {
+            if (!this.els.contextMenu) return;
+
+            // Hide on global click
+            document.addEventListener('click', () => {
+                this.els.contextMenu.style.display = 'none';
+            });
+
+            // Menu Actions
+            this.els.contextMenu.querySelectorAll('li').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const action = e.target.dataset.action;
+                    const targetId = this.state.contextEntryId;
+                    this.handleContextAction(action, targetId);
+                });
+            });
+        }
+
+        initSelectionBar() {
+            if (!this.els.selectionBar) return;
+
+            this.els.btnBulkCancel.onclick = () => this.clearSelection();
+
+            this.els.btnBulkDelete.onclick = () => {
+                if (confirm(`Delete ${this.state.selectedEntryIds.size} cards?`)) {
+                    this.deleteMultipleEntries();
+                }
+            };
+
+            this.els.btnBulkSplit.onclick = () => {
+                // Only allow 2 items for split view
+                if (this.state.selectedEntryIds.size !== 2) {
+                    alert("Please select exactly 2 cards for Split View.");
+                    return;
+                }
+                const ids = Array.from(this.state.selectedEntryIds);
+                const unit = this.library.getUnit(this.state.currentUnitId) ||
+                    (this.state.currentUnitId === 'general' ? { entries: this.library.getAllEntries() } : null);
+
+                if (!unit) return;
+
+                const ent1 = unit.entries.find(e => e.id === ids[0]);
+                const ent2 = unit.entries.find(e => e.id === ids[1]);
+
+                if (ent1 && ent2) {
+                    this.openSplitView([ent1, ent2]);
+                    this.clearSelection();
+                }
+            };
+        }
+
+        openContextMenu(e, entryId) {
+            this.state.contextEntryId = entryId;
+            const menu = this.els.contextMenu;
+            menu.style.display = 'block';
+            menu.style.left = `${e.pageX}px`;
+            menu.style.top = `${e.pageY}px`;
+        }
+
+        handleContextAction(action, id) {
+            if (action === 'select') {
+                this.toggleSelection(id);
+            } else if (action === 'delete') {
+                if (confirm("Delete this entry?")) {
+                    this.library.deleteEntry(this.state.currentUnitId, id);
+                    this.renderMainContent();
+                }
+            }
+        }
+
+        toggleSelection(id) {
+            const set = this.state.selectedEntryIds;
+            if (set.has(id)) set.delete(id);
+            else set.add(id);
+
+            this.state.selectionMode = set.size > 0;
+            this.updateSelectionUI();
+            this.renderMainContent(); // Re-render to show selection state (checkbox/border)
+        }
+
+        clearSelection() {
+            this.state.selectedEntryIds.clear();
+            this.state.selectionMode = false;
+            this.updateSelectionUI();
+            this.renderMainContent();
+        }
+
+        updateSelectionUI() {
+            const count = this.state.selectedEntryIds.size;
+            this.els.selectionCount.innerText = `${count} Selected`;
+
+            if (count > 0) {
+                this.els.selectionBar.classList.add('visible');
+                // Check button state (Split View valid only for 2)
+                this.els.btnBulkSplit.disabled = (count !== 2);
+                this.els.btnBulkSplit.style.opacity = (count !== 2) ? 0.5 : 1;
+            } else {
+                this.els.selectionBar.classList.remove('visible');
+            }
+        }
+
+        deleteMultipleEntries() {
+            const unitId = this.state.currentUnitId;
+            this.state.selectedEntryIds.forEach(id => {
+                this.library.deleteEntry(unitId, id);
+            });
+            this.clearSelection();
+        }
+
+        toggleConjoined() {
+            const entries = this.state.splitEntries;
+            // Case 1: We are in Split View of 2 separate entries -> Merge them
+            if (entries.length === 2 && entries[0].type !== 'group' && entries[1].type !== 'group') {
+                const uId = this.state.currentUnitId;
+                // Create Composite Entry
+                const compositeTitle = `${entries[0].title} & ${entries[1].title}`;
+
+                // We need full data of both
+                const newEntry = {
+                    title: compositeTitle,
+                    type: 'group',
+                    children: [entries[0], entries[1]]
+                };
+
+                // Add to library
+                this.library.addEntry(uId, newEntry.title, null, null, false);
+
+                // Get the ID of the new entry (it's the last one added)
+                const units = this.library.getUnits();
+                const unit = this.state.currentUnitId === 'general' ? units[0] : units.find(u => u.id === uId);
+                const addedEntry = unit.entries[unit.entries.length - 1];
+
+                // Update the added entry to fully match our structure (library.addEntry is simple)
+                this.library.updateEntry(unit.id, addedEntry.id, {
+                    type: 'group',
+                    children: [entries[0], entries[1]],
+                    raw: '',
+                    desmosId: ''
+                });
+
+                // Delete original individual entries
+                // Find their units first (if in general view)
+                const findUnitId = (id) => {
+                    if (this.state.currentUnitId !== 'general') return this.state.currentUnitId;
+                    return this.library.getUnits().find(u => u.entries.find(e => e.id === id))?.id;
+                };
+
+                if (entries[0].id) this.library.deleteEntry(findUnitId(entries[0].id), entries[0].id);
+                if (entries[1].id) this.library.deleteEntry(findUnitId(entries[1].id), entries[1].id);
+
+                // Close modal and refresh to show new single card
+                this.closeModal();
+                this.renderMainContent();
+                this.renderSidebar();
+
+                // Re-open in view modal as the new composite entry
+                setTimeout(() => this.openViewModal(addedEntry), 100);
+                return;
+            }
+
+            // Case 2: We are viewing a Composite/Group Entry -> Unmerge (Split) them
+            if (entries.length === 1 && entries[0].type === 'group') {
+                const groupEntry = entries[0];
+                const children = groupEntry.children;
+                const uId = this.state.currentUnitId; // Restore to current unit for simplicity
+
+                // Restore Child 1
+                this.library.addEntry(uId, children[0].title, children[0].raw, children[0].desmosId, false);
+                const unit = this.library.getUnit(uId);
+                const child1 = unit.entries[unit.entries.length - 1];
+                this.library.updateEntry(uId, child1.id, { type: children[0].type }); // Ensure type is correct
+
+                // Restore Child 2
+                this.library.addEntry(uId, children[1].title, children[1].raw, children[1].desmosId, false);
+                const child2 = unit.entries[unit.entries.length - 1];
+                this.library.updateEntry(uId, child2.id, { type: children[1].type });
+
+                // Delete Group Entry
+                this.library.deleteEntry(uId, groupEntry.id);
+
+                this.closeModal();
+                this.renderMainContent();
+                this.renderSidebar();
+            }
+        }
+    }
+
 
 window.addEventListener('DOMContentLoaded', () => {
     window.app = new App();

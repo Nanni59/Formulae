@@ -75,9 +75,25 @@
             </div>
             <div class="modal-body split-pane">
                 <div class="editor-pane">
+                    <select id="modal-type-input"
+                        style="width:100%; padding:0.8rem; margin-bottom:1rem; border:1px solid #ddd; border-radius:8px; font-family:inherit;">
+                        <option value="latex">LaTeX Formula</option>
+                        <option value="desmos">Desmos Graph</option>
+                    </select>
                     <input type="text" id="modal-title-input" placeholder="Title">
 
-                    <textarea id="modal-raw-input" placeholder="Enter LaTeX code..."></textarea>
+                    <div id="input-container-latex">
+                        <label style="display:block; margin-top:1rem; font-weight:600; color:#555;">LaTeX
+                            Formula</label>
+                        <textarea id="modal-raw-input" placeholder="Enter LaTeX code..."
+                            style="height: 150px; min-height:100px;"></textarea>
+                    </div>
+
+                    <div id="input-container-desmos" class="hidden">
+                        <label style="display:block; margin-top:1rem; font-weight:600; color:#555;">Desmos Graph ID /
+                            URL</label>
+                        <input type="text" id="modal-desmos-input" placeholder="e.g. u59y083d0i">
+                    </div>
                 </div>
                 <div class="preview-pane">
                     <div id="modal-preview-area" class="preview-stage">
@@ -101,6 +117,8 @@
                         <button id="btn-zoom-out" class="btn-secondary" title="Zoom Out">&minus;</button>
                         <button id="btn-zoom-in" class="btn-secondary" title="Zoom In">&plus;</button>
                     </div>
+                    <button id="btn-link-view" class="btn-secondary" title="Save Layout"
+                        style="display:none;">🔗</button>
                     <button id="btn-edit-view" class="btn-secondary">Edit</button>
                     <button id="btn-close-view" class="btn-close">&times;</button>
                 </div>
@@ -115,9 +133,25 @@
     </div>
 
     <!-- Scripts (Order Matters) -->
-    <script src="static/js/renderer.js"></script>
-    <script src="static/js/library.js"></script>
-    <script src="static/js/app.js"></script>
+    <div id="context-menu" class="context-menu">
+        <ul>
+            <li data-action="select">Select Card</li>
+            <li data-action="delete" class="text-danger">Delete</li>
+        </ul>
+    </div>
+
+    <div id="selection-bar" class="selection-bar">
+        <span id="selection-count">0 Selected</span>
+        <div class="selection-actions">
+            <button id="btn-bulk-split" class="btn-primary">Create Split View</button>
+            <button id="btn-bulk-delete" class="btn-danger">Delete</button>
+            <button id="btn-bulk-cancel" class="btn-secondary">Cancel</button>
+        </div>
+    </div>
+
+    <script src="static/js/renderer.js?v=3"></script>
+    <script src="static/js/library.js?v=3"></script>
+    <script src="static/js/app.js?v=3"></script>
 </body>
 
 </html>
