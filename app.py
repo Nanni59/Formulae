@@ -1,3 +1,4 @@
+import os
 from flask import Flask, render_template
 
 
@@ -11,4 +12,5 @@ def index():
     return render_template('index.html')
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 't')
+    app.run(debug=debug_mode, port=5500)

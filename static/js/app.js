@@ -3,11 +3,13 @@
 // - Fixed Modal Type reference
 // - Added 'General' tab support
 // - Added Unit deletion support
+// - Added PDFs tab with local IndexedDB storage
 
 class App {
     constructor() {
         this.library = new window.FormulaLibrary();
         this.renderer = new window.Renderer();
+        this.pdfStore = new window.PdfStore();
 
         this.state = {
             currentUnitId: 'general', // Default to General
@@ -43,7 +45,14 @@ class App {
             btnZoomOut: document.getElementById('btn-zoom-out'),
 
             exportBtn: document.getElementById('btn-export'),
-            importInput: document.getElementById('file-import')
+            importInput: document.getElementById('file-import'),
+
+            // PDF elements
+            pdfUploadInput: document.getElementById('pdf-upload-input'),
+            pdfViewerModal: document.getElementById('pdf-viewer-modal'),
+            pdfViewerTitle: document.getElementById('pdf-viewer-title'),
+            pdfViewerIframe: document.getElementById('pdf-viewer-iframe'),
+            btnClosePdfViewer: document.getElementById('btn-close-pdf-viewer')
         };
 
         this.currentZoom = 1;
@@ -65,14 +74,47 @@ class App {
             });
         }
 
-        // Add Entry
+        // Add Entry / Upload PDF
         if (this.els.addEntryBtn) {
             this.els.addEntryBtn.addEventListener('click', () => {
+                if (this.state.currentUnitId === 'pdfs') {
+                    this.els.pdfUploadInput.click();
+                    return;
+                }
                 if (this.state.currentUnitId === 'general') {
                     alert("Please select a specific Unit to add an entry.");
                     return;
                 }
                 this.openModal(null); // New Entry
+            });
+        }
+
+        // PDF Upload
+        if (this.els.pdfUploadInput) {
+            this.els.pdfUploadInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                try {
+                    await this.pdfStore.addPdf(file);
+                    this.els.pdfUploadInput.value = '';
+                    this.renderSidebar();
+                    this.renderMainContent();
+                } catch (err) {
+                    console.error('Failed to upload PDF:', err);
+                    alert('Failed to upload PDF. Storage may be full.');
+                }
+            });
+        }
+
+        // PDF Viewer Modal Close
+        if (this.els.btnClosePdfViewer) {
+            this.els.btnClosePdfViewer.addEventListener('click', () => {
+                if (this.currentPdfBlobUrl) {
+                    URL.revokeObjectURL(this.currentPdfBlobUrl);
+                    this.currentPdfBlobUrl = null;
+                }
+                this.els.pdfViewerIframe.src = '';
+                this.els.pdfViewerModal.classList.remove('visible');
             });
         }
 
@@ -234,7 +276,7 @@ class App {
 
         this.els.sidebarList.addEventListener('dragstart', (e) => {
             const li = e.target.closest('li');
-            if (!li || li.dataset.id === 'general') {
+            if (!li || li.dataset.id === 'general' || li.dataset.id === 'pdfs') {
                 e.preventDefault();
                 return;
             }
@@ -252,7 +294,7 @@ class App {
         this.els.sidebarList.addEventListener('dragover', (e) => {
             e.preventDefault();
             const li = e.target.closest('li');
-            if (!li || li.dataset.id === 'general' || li.dataset.id === draggedUnitId) return;
+            if (!li || li.dataset.id === 'general' || li.dataset.id === 'pdfs' || li.dataset.id === draggedUnitId) return;
             li.classList.add('drag-over');
         });
 
@@ -264,7 +306,7 @@ class App {
         this.els.sidebarList.addEventListener('drop', (e) => {
             e.preventDefault();
             const targetLi = e.target.closest('li');
-            if (!targetLi || targetLi.dataset.id === 'general') return;
+            if (!targetLi || targetLi.dataset.id === 'general' || targetLi.dataset.id === 'pdfs') return;
 
             const targetUnitId = targetLi.dataset.id;
             if (draggedUnitId && draggedUnitId !== targetUnitId) {
@@ -337,13 +379,18 @@ class App {
         });
     }
 
-    renderSidebar() {
+    async renderSidebar() {
         const units = this.library.getUnits();
         const totalEntries = units.reduce((sum, u) => sum + u.entries.length, 0);
+        let pdfCount = 0;
+        try { pdfCount = await this.pdfStore.getCount(); } catch (e) { /* ignore */ }
 
         let html = `
             <li class="${this.state.currentUnitId === 'general' ? 'active' : ''}" data-id="general">
                 General <span style="float:right;opacity:0.5">${totalEntries}</span>
+            </li>
+            <li class="${this.state.currentUnitId === 'pdfs' ? 'active' : ''}" data-id="pdfs">
+                <span style="color:#c80a0a; font-weight:600;">PDFs</span> <span style="float:right;opacity:0.5">${pdfCount}</span>
             </li>
             <div style="border-top:1px solid #ddd; margin: 10px 0;"></div>
         `;
@@ -372,6 +419,14 @@ class App {
     }
 
     renderMainContent(filterText = '') {
+        if (this.state.currentUnitId === 'pdfs') {
+            this.els.addEntryBtn.style.display = 'inline-block';
+            this.els.addEntryBtn.innerText = 'Upload PDF';
+            this.renderPdfContent(filterText);
+            return;
+        }
+
+        this.els.addEntryBtn.innerText = 'New Entry';
         let entries = [];
         if (this.state.currentUnitId === 'general') {
             entries = this.library.getAllEntries();
@@ -612,6 +667,107 @@ class App {
         if (this.state.isNew) this.library.addEntry(this.state.currentUnitId, title, raw, false);
         else this.library.updateEntry(this.state.currentUnitId, this.state.editingEntryId, { title, raw, isTikZ: false });
         this.closeModal(); this.renderMainContent(); this.renderSidebar();
+    }
+
+    async renderPdfContent(filterText = '') {
+        this.els.mainContent.innerHTML = '';
+        let pdfs = [];
+        try {
+            pdfs = await this.pdfStore.getAllPdfs();
+        } catch (e) {
+            this.els.mainContent.innerHTML = '<div class="empty-state">Failed to load PDFs.</div>';
+            return;
+        }
+
+        if (filterText) {
+            const lower = filterText.toLowerCase();
+            pdfs = pdfs.filter(p => p.name.toLowerCase().includes(lower));
+        }
+
+        if (pdfs.length === 0) {
+            this.els.mainContent.innerHTML = '<div class="empty-state">No PDFs uploaded yet. Click "Upload PDF" to add one.</div>';
+            return;
+        }
+
+        pdfs.forEach(pdf => {
+            const card = document.createElement('div');
+            card.className = 'pdf-card';
+            card.dataset.id = pdf.id;
+
+            const sizeMB = (pdf.size / (1024 * 1024)).toFixed(1);
+            const dateStr = new Date(pdf.dateAdded).toLocaleDateString();
+
+            card.innerHTML = `
+                <div class="pdf-card-icon">
+                    <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" xml:space="preserve" style="height: 60px; width: auto;" fill="#000000">
+                    <g id="SVGRepo_bgCarrier" stroke-width="0"/>
+                    <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"/>
+                    <g id="SVGRepo_iconCarrier"> <path style="fill:#B3404A;" d="M437.456,512H21.212c-8.166,0-14.786-6.621-14.786-14.786V256.915c0-8.165,6.62-14.786,14.786-14.786 s14.786,6.621,14.786,14.786v225.512h386.671v-32.939c0-8.165,6.62-14.786,14.786-14.786s14.786,6.621,14.786,14.786v47.725 C452.242,505.379,445.622,512,437.456,512z"/> <g> <polygon style="fill:#ffffff;" points="21.212,177.092 21.212,172.3 176.068,14.786 176.068,177.092 "/> <rect x="196.524" y="219.426" style="fill:#ffffff;" width="294.274" height="163.712"/> </g> <g> <path style="fill:#B3404A;" d="M490.791,204.634h-38.549V14.786c0-8.165-6.62-14.786-14.786-14.786H176.068 c-0.067,0-0.132,0.009-0.198,0.01c-0.359,0.004-0.717,0.022-1.075,0.053c-0.12,0.01-0.241,0.021-0.361,0.034 c-0.41,0.046-0.816,0.105-1.22,0.185c-0.031,0.006-0.061,0.009-0.092,0.015c-0.432,0.089-0.858,0.2-1.28,0.325 c-0.111,0.033-0.22,0.071-0.33,0.106c-0.322,0.105-0.642,0.22-0.958,0.347c-0.108,0.044-0.217,0.086-0.324,0.132 c-0.807,0.346-1.585,0.766-2.326,1.257c-0.102,0.067-0.2,0.139-0.3,0.207c-0.274,0.191-0.541,0.392-0.803,0.603 c-0.099,0.08-0.198,0.157-0.294,0.24c-0.339,0.287-0.67,0.586-0.985,0.906L10.668,161.935c-0.346,0.352-0.671,0.719-0.977,1.1 c-0.182,0.226-0.342,0.463-0.509,0.696c-0.112,0.157-0.234,0.309-0.34,0.47c-0.194,0.294-0.364,0.599-0.534,0.903 c-0.062,0.112-0.133,0.219-0.192,0.333c-0.166,0.315-0.308,0.639-0.449,0.963c-0.05,0.114-0.108,0.225-0.155,0.34 c-0.126,0.312-0.231,0.628-0.336,0.946c-0.04,0.139-0.099,0.274-0.14,0.413c-0.087,0.294-0.152,0.591-0.22,0.889 c-0.04,0.172-0.087,0.34-0.121,0.515c-0.053,0.274-0.084,0.55-0.121,0.825c-0.027,0.201-0.062,0.399-0.081,0.6 c-0.025,0.268-0.03,0.535-0.04,0.801c-0.007,0.191-0.028,0.38-0.028,0.571v4.792c0,8.165,6.62,14.786,14.786,14.786h154.855 c8.166,0,14.786-6.621,14.786-14.786V29.572h231.816v175.062H196.518c-8.166,0-14.786,6.621-14.786,14.786v163.705 c0,8.165,6.62,14.786,14.786,14.786h294.272c8.166,0,14.786-6.621,14.786-14.786V219.421 C505.577,211.256,498.957,204.634,490.791,204.634z M51.772,162.308l47.938-48.76l61.571-62.63v111.39L51.772,162.308 L51.772,162.308z M476.005,368.339h-264.7V234.207h264.7V368.339z"/> <path style="fill:#B3404A;" d="M246.08,260.736c0-3.2,2.925-6.015,7.375-6.015h26.322c16.785,0,30.008,7.934,30.008,29.433v0.64 c0,21.499-13.733,29.689-31.28,29.689h-12.589v27.641c0,4.096-4.959,6.142-9.919,6.142s-9.919-2.048-9.919-6.142L246.08,260.736 L246.08,260.736z M265.916,272.124v27.002h12.589c7.121,0,11.444-4.096,11.444-12.797v-1.406c0-8.703-4.323-12.797-11.444-12.797 h-12.589V272.124z"/> <path style="fill:#B3404A;" d="M349.586,254.721c17.548,0,31.282,8.19,31.282,30.202v33.145c0,22.011-13.733,30.201-31.282,30.201 h-22.507c-5.214,0-8.647-2.815-8.647-6.014v-81.518c0-3.2,3.433-6.015,8.647-6.015h22.507V254.721z M338.269,272.124v58.739h11.317 c7.121,0,11.444-4.096,11.444-12.796v-33.145c0-8.703-4.323-12.797-11.444-12.797h-11.317V272.124z"/> <path style="fill:#B3404A;" d="M393.458,260.863c0-4.096,4.323-6.142,8.647-6.142h44.125c4.196,0,5.977,4.479,5.977,8.574 c0,4.735-2.162,8.83-5.977,8.83h-32.935v21.628h19.201c3.815,0,5.977,3.711,5.977,7.806c0,3.456-1.78,7.55-5.977,7.55h-19.201 v33.016c0,4.096-4.959,6.142-9.919,6.142c-4.959,0-9.919-2.048-9.919-6.142V260.863z"/> </g> </g>
+                    </svg>
+                </div>
+                <div class="pdf-card-info">
+                    <h3 title="${pdf.name}">${pdf.name}</h3>
+                    <p>${sizeMB} MB · ${dateStr}</p>
+                </div>
+                <div class="pdf-card-actions">
+                    <button class="pdf-view-btn">View</button>
+                    <button class="pdf-rename-btn">Rename</button>
+                    <button class="pdf-delete-btn btn-danger">Delete</button>
+                </div>
+            `;
+
+            card.querySelector('.pdf-view-btn').onclick = (e) => {
+                e.stopPropagation();
+                this.openPdfViewer(pdf.id, pdf.name);
+            };
+
+            card.querySelector('.pdf-rename-btn').onclick = async (e) => {
+                e.stopPropagation();
+                const newName = prompt('Rename PDF:', pdf.name);
+                if (newName && newName.trim() && newName.trim() !== pdf.name) {
+                    await this.pdfStore.renamePdf(pdf.id, newName.trim());
+                    this.renderMainContent();
+                    this.renderSidebar();
+                }
+            };
+
+            card.querySelector('.pdf-delete-btn').onclick = async (e) => {
+                e.stopPropagation();
+                if (confirm(`Delete "${pdf.name}"?`)) {
+                    await this.pdfStore.deletePdf(pdf.id);
+                    this.renderMainContent();
+                    this.renderSidebar();
+                }
+            };
+
+            card.addEventListener('click', () => {
+                this.openPdfViewer(pdf.id, pdf.name);
+            });
+
+            this.els.mainContent.append(card);
+        });
+    }
+
+    async openPdfViewer(id, name) {
+        let blob;
+        try {
+            blob = await this.pdfStore.getPdfBlob(id);
+        } catch (err) {
+            console.error('Failed to load PDF:', err);
+            alert('Failed to load PDF. It may have been removed or corrupted.');
+            return;
+        }
+        if (!blob) {
+            alert('PDF not found.');
+            return;
+        }
+        if (this.currentPdfBlobUrl) {
+            URL.revokeObjectURL(this.currentPdfBlobUrl);
+        }
+        this.currentPdfBlobUrl = URL.createObjectURL(blob);
+        this.els.pdfViewerTitle.innerText = name;
+        this.els.pdfViewerIframe.src = this.currentPdfBlobUrl;
+        this.els.pdfViewerModal.classList.add('visible');
     }
 }
 

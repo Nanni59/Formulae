@@ -529,3 +529,93 @@ mjx-container[jax="SVG"][display="true"] {
     margin-left: 0 !important;
     margin-right: 0 !important;
 }
+
+/* PDF Cards */
+.pdf-card {
+    background: white;
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    cursor: pointer;
+    width: 100%;
+    height: 200px;
+    box-sizing: border-box;
+}
+
+.pdf-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+    border-color: var(--primary-color);
+}
+
+.pdf-card-icon {
+    font-size: 2.5rem;
+    text-align: center;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ef4444;
+    opacity: 0.8;
+}
+
+.pdf-card-info {
+    text-align: center;
+}
+
+.pdf-card-info h3 {
+    margin: 0 0 4px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pdf-card-info p {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.pdf-card-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.pdf-card:hover .pdf-card-actions {
+    opacity: 1;
+}
+
+.pdf-card-actions button {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border: 1px solid #ddd;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.pdf-card-actions button:hover {
+    background: #f9fafb;
+    border-color: #bbb;
+}
+
+.pdf-card-actions .btn-danger:hover {
+    color: var(--accent-danger);
+    border-color: var(--accent-danger);
+}
+
+/* PDF sidebar tab icon */
+.sidebar-pdf-icon {
+    margin-right: 6px;
+}
