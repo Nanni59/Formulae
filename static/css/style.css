@@ -60,6 +60,7 @@ body {
 .brand h1 {
     font-size: 1.8rem;
     margin: 0;
+    width: fit-content;
     background: linear-gradient(to right, #6366f1, #8b5cf6);
     background-clip: text;
     -webkit-background-clip: text;
@@ -693,4 +694,45 @@ mjx-container[jax="SVG"][display="true"] {
 .glass-container.sidebar-collapsed .btn-hamburger {
     font-size: 1.8rem;
     color: var(--primary-color);
+}
+
+/* Tooltip Styles */
+[data-tooltip] {
+    position: relative;
+    cursor: default;
+}
+
+/* Tooltip Bubble (Course Planner Style) */
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 110%;
+    /* Position above the text */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    animation: fadeInTooltip 0.2s forwards;
+    pointer-events: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    z-index: 100;
+}
+
+@keyframes fadeInTooltip {
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(5px);
+    }
 }
