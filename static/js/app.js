@@ -409,14 +409,20 @@ class App {
 
         let html = `
             <li class="${this.state.currentUnitId === 'general' ? 'active' : ''}" data-id="general">
-                General <span style="float:right;opacity:0.5">${totalEntries}</span>
+                <span>General</span>
+                <div style="display:flex; align-items:center; justify-content:flex-end; min-width:50px;">
+                    <span class="unit-count">${totalEntries}</span>
+                </div>
             </li>
         `;
 
         if (this.pdfStore) {
             html += `
             <li class="${this.state.currentUnitId === 'pdfs' ? 'active' : ''}" data-id="pdfs">
-                <span style="color:#c80a0a; font-weight:600;">PDFs</span> <span style="float:right;opacity:0.5">${pdfCount}</span>
+                <span style="color:#c80a0a; font-weight:600;">PDFs</span>
+                <div style="display:flex; align-items:center; justify-content:flex-end; min-width:50px;">
+                    <span class="unit-count">${pdfCount}</span>
+                </div>
             </li>`;
         }
 
@@ -803,12 +809,17 @@ class App {
 
     toggleSidebar() {
         const container = document.querySelector('.glass-container');
+        const content = this.els.mainContent;
+        content.style.contentVisibility = 'hidden';
         container.classList.toggle('sidebar-collapsed');
         const isCollapsed = container.classList.contains('sidebar-collapsed');
         if (this.els.btnFullscreen) {
             this.els.btnFullscreen.innerHTML = isCollapsed ? '&#9776;' : '&times;';
             this.els.btnFullscreen.title = isCollapsed ? 'Show Sidebar' : 'Hide Sidebar';
         }
+        setTimeout(() => {
+            content.style.contentVisibility = '';
+        }, 320);
     }
 }
 

@@ -29,27 +29,30 @@
     <div class="glass-container">
         <!-- Sidebar -->
         <aside class="sidebar">
-            <div class="brand">
-                <h1>Formulae</h1>
-                <p>Repository</p>
-            </div>
+            <div class="sidebar-inner">
+                <div class="brand">
+                    <h1>Formulae</h1>
+                    <p>Repository</p>
+                </div>
 
-            <div class="search-box">
-                <input type="text" id="search-input" placeholder="Search formulas...">
-            </div>
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="Search formulas...">
+                </div>
 
-            <div class="unit-section">
-                <h3>Units</h3>
-                <ul id="unit-list" class="unit-list">
-                    <!-- Injected by app.js -->
-                </ul>
-                <button id="btn-add-unit" class="btn-secondary" style="width:100%; margin-top:10px;">New Unit</button>
-            </div>
+                <div class="unit-section">
+                    <h3>Units</h3>
+                    <ul id="unit-list" class="unit-list">
+                        <!-- Injected by app.js -->
+                    </ul>
+                    <button id="btn-add-unit" class="btn-secondary" style="width:100%; margin-top:10px;">New
+                        Unit</button>
+                </div>
 
-            <div class="sidebar-footer">
-                <button id="btn-export" class="btn-secondary">Export JSON</button>
-                <label for="file-import" class="btn-secondary">Import JSON</label>
-                <input type="file" id="file-import" style="display:none" accept=".json">
+                <div class="sidebar-footer">
+                    <button id="btn-export" class="btn-secondary">Export JSON</button>
+                    <label for="file-import" class="btn-secondary">Import JSON</label>
+                    <input type="file" id="file-import" style="display:none" accept=".json">
+                </div>
             </div>
         </aside>
 
@@ -117,6 +120,7 @@
     <!-- Scripts (Order Matters) -->
     <script src="static/js/renderer.js"></script>
     <script src="static/js/library.js"></script>
+    <script src="static/js/pdf-store.js"></script>
     <script src="static/js/app.js"></script>
 </body>
 

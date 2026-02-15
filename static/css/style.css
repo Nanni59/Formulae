@@ -40,11 +40,21 @@ body {
 /* Sidebar */
 .sidebar {
     width: 250px;
+    padding: 2rem;
     background: rgba(0, 0, 0, 0.02);
     border-right: 1px solid var(--glass-border);
-    padding: 2rem;
     display: flex;
     flex-direction: column;
+    transition: width 0.3s ease, padding 0.3s ease;
+    overflow: hidden;
+}
+
+.sidebar-inner {
+    width: 250px;
+    min-width: 250px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .brand h1 {
@@ -99,6 +109,18 @@ body {
     color: var(--text-secondary);
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    /* Better alignment for wrapped text */
+    white-space: normal;
+    /* Allow wrapping */
+}
+
+.unit-list li span:first-child {
+    flex: 1;
+    overflow-wrap: break-word;
+    /* Ensure long words break if needed */
+    padding-right: 8px;
+    line-height: normal;
 }
 
 .unit-list li:hover {
@@ -117,6 +139,8 @@ body {
     color: var(--text-secondary);
     opacity: 0.5;
     font-size: 0.9rem;
+    flex-shrink: 0;
+    /* Prevent count from squishing */
 }
 
 
@@ -129,6 +153,7 @@ body {
 .unit-actions {
     display: none;
     gap: 5px;
+    flex-shrink: 0;
 }
 
 .unit-list li:hover .unit-actions {
@@ -226,6 +251,10 @@ header h2 {
     height: 250px;
     /* Standardize height */
     box-sizing: border-box;
+
+    /* Performance optimization for many cards */
+    content-visibility: auto;
+    contain-intrinsic-size: 250px;
 }
 
 .entry-card:hover {
@@ -647,20 +676,13 @@ mjx-container[jax="SVG"][display="true"] {
 }
 
 /* Sidebar Transition */
-.sidebar {
-    transition: all 0.3s ease;
-    white-space: nowrap;
-    /* Prevent text wrapping during collapse */
-}
+/* (Handled above in .sidebar definitions) */
 
 /* Sidebar Collapse Mode */
 .glass-container.sidebar-collapsed .sidebar {
     width: 0;
-    padding-left: 0;
-    padding-right: 0;
+    padding: 0;
     border-right: none;
-    overflow: hidden;
-    opacity: 0;
 }
 
 .glass-container.sidebar-collapsed .btn-hamburger {
