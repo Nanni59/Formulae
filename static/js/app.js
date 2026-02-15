@@ -9,7 +9,12 @@ class App {
     constructor() {
         this.library = new window.FormulaLibrary();
         this.renderer = new window.Renderer();
-        this.pdfStore = new window.PdfStore();
+        try {
+            this.pdfStore = window.PdfStore ? new window.PdfStore() : null;
+        } catch (e) {
+            console.error("PdfStore init failed", e);
+            this.pdfStore = null;
+        }
 
         this.state = {
             currentUnitId: 'general', // Default to General
@@ -52,7 +57,10 @@ class App {
             pdfViewerModal: document.getElementById('pdf-viewer-modal'),
             pdfViewerTitle: document.getElementById('pdf-viewer-title'),
             pdfViewerIframe: document.getElementById('pdf-viewer-iframe'),
-            btnClosePdfViewer: document.getElementById('btn-close-pdf-viewer')
+            btnClosePdfViewer: document.getElementById('btn-close-pdf-viewer'),
+
+            // Fullscreen
+            btnFullscreen: document.getElementById('btn-fullscreen')
         };
 
         this.currentZoom = 1;
@@ -71,6 +79,13 @@ class App {
         if (this.els.searchBar) {
             this.els.searchBar.addEventListener('input', (e) => {
                 this.renderMainContent(e.target.value);
+            });
+        }
+
+        // Fullscreen Toggle (Sidebar)
+        if (this.els.btnFullscreen) {
+            this.els.btnFullscreen.addEventListener('click', () => {
+                this.toggleSidebar();
             });
         }
 
@@ -274,126 +289,138 @@ class App {
         // Sidebar Drag and Drop (Unit Reordering)
         let draggedUnitId = null;
 
-        this.els.sidebarList.addEventListener('dragstart', (e) => {
-            const li = e.target.closest('li');
-            if (!li || li.dataset.id === 'general' || li.dataset.id === 'pdfs') {
-                e.preventDefault();
-                return;
-            }
-            draggedUnitId = li.dataset.id;
-            e.dataTransfer.effectAllowed = 'move';
-            li.classList.add('dragging');
-        });
-
-        this.els.sidebarList.addEventListener('dragend', (e) => {
-            const li = e.target.closest('li');
-            if (li) li.classList.remove('dragging');
-            document.querySelectorAll('.unit-list li').forEach(el => el.classList.remove('drag-over'));
-        });
-
-        this.els.sidebarList.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            const li = e.target.closest('li');
-            if (!li || li.dataset.id === 'general' || li.dataset.id === 'pdfs' || li.dataset.id === draggedUnitId) return;
-            li.classList.add('drag-over');
-        });
-
-        this.els.sidebarList.addEventListener('dragleave', (e) => {
-            const li = e.target.closest('li');
-            if (li) li.classList.remove('drag-over');
-        });
-
-        this.els.sidebarList.addEventListener('drop', (e) => {
-            e.preventDefault();
-            const targetLi = e.target.closest('li');
-            if (!targetLi || targetLi.dataset.id === 'general' || targetLi.dataset.id === 'pdfs') return;
-
-            const targetUnitId = targetLi.dataset.id;
-            if (draggedUnitId && draggedUnitId !== targetUnitId) {
-                const units = this.library.getUnits();
-                const fromIndex = units.findIndex(u => u.id === draggedUnitId);
-                const toIndex = units.findIndex(u => u.id === targetUnitId);
-
-                if (fromIndex !== -1 && toIndex !== -1) {
-                    this.library.reorderUnits(fromIndex, toIndex);
-                    this.renderSidebar();
+        if (this.els.sidebarList) {
+            this.els.sidebarList.addEventListener('dragstart', (e) => {
+                const li = e.target.closest('li');
+                if (!li || li.dataset.id === 'general' || li.dataset.id === 'pdfs') {
+                    e.preventDefault();
+                    return;
                 }
-            }
-        });
+                draggedUnitId = li.dataset.id;
+                e.dataTransfer.effectAllowed = 'move';
+                li.classList.add('dragging');
+            });
+
+            this.els.sidebarList.addEventListener('dragend', (e) => {
+                const li = e.target.closest('li');
+                if (li) li.classList.remove('dragging');
+                document.querySelectorAll('.unit-list li').forEach(el => el.classList.remove('drag-over'));
+            });
+
+            this.els.sidebarList.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const li = e.target.closest('li');
+                if (!li || li.dataset.id === 'general' || li.dataset.id === 'pdfs' || li.dataset.id === draggedUnitId) return;
+                li.classList.add('drag-over');
+            });
+
+            this.els.sidebarList.addEventListener('dragleave', (e) => {
+                const li = e.target.closest('li');
+                if (li) li.classList.remove('drag-over');
+            });
+
+            this.els.sidebarList.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const targetLi = e.target.closest('li');
+                if (!targetLi || targetLi.dataset.id === 'general' || targetLi.dataset.id === 'pdfs') return;
+
+                const targetUnitId = targetLi.dataset.id;
+                if (draggedUnitId && draggedUnitId !== targetUnitId) {
+                    const units = this.library.getUnits();
+                    const fromIndex = units.findIndex(u => u.id === draggedUnitId);
+                    const toIndex = units.findIndex(u => u.id === targetUnitId);
+
+                    if (fromIndex !== -1 && toIndex !== -1) {
+                        this.library.reorderUnits(fromIndex, toIndex);
+                        this.renderSidebar();
+                    }
+                }
+            });
+        }
 
         // Main Content Drag and Drop (Card Reordering)
         let draggedCardId = null;
 
-        this.els.mainContent.addEventListener('dragstart', (e) => {
-            // Disable reordering in General view
-            if (this.state.currentUnitId === 'general') {
-                e.preventDefault();
-                return;
-            }
-            const card = e.target.closest('.entry-card');
-            if (!card) return;
-
-            draggedCardId = card.dataset.id;
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', draggedCardId);
-            setTimeout(() => card.classList.add('dragging'), 0);
-        });
-
-        this.els.mainContent.addEventListener('dragend', (e) => {
-            const card = e.target.closest('.entry-card');
-            if (card) card.classList.remove('dragging');
-            document.querySelectorAll('.entry-card').forEach(c => c.classList.remove('drag-over'));
-        });
-
-        this.els.mainContent.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            if (this.state.currentUnitId === 'general') return;
-            const card = e.target.closest('.entry-card');
-            if (!card || card.dataset.id === draggedCardId) return;
-            card.classList.add('drag-over');
-        });
-
-        this.els.mainContent.addEventListener('dragleave', (e) => {
-            const card = e.target.closest('.entry-card');
-            if (card) card.classList.remove('drag-over');
-        });
-
-        this.els.mainContent.addEventListener('drop', (e) => {
-            e.preventDefault();
-            if (this.state.currentUnitId === 'general') return;
-
-            const targetCard = e.target.closest('.entry-card');
-            if (!targetCard || !draggedCardId) return;
-
-            const targetId = targetCard.dataset.id;
-            if (draggedCardId !== targetId) {
-                const unit = this.library.getUnit(this.state.currentUnitId);
-                const fromIndex = unit.entries.findIndex(e => e.id === draggedCardId);
-                const toIndex = unit.entries.findIndex(e => e.id === targetId);
-
-                if (fromIndex !== -1 && toIndex !== -1) {
-                    this.library.reorderEntries(this.state.currentUnitId, fromIndex, toIndex);
-                    this.renderMainContent();
+        if (this.els.mainContent) {
+            this.els.mainContent.addEventListener('dragstart', (e) => {
+                // Disable reordering in General view
+                if (this.state.currentUnitId === 'general') {
+                    e.preventDefault();
+                    return;
                 }
-            }
-        });
+                const card = e.target.closest('.entry-card');
+                if (!card) return;
+
+                draggedCardId = card.dataset.id;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', draggedCardId);
+                setTimeout(() => card.classList.add('dragging'), 0);
+            });
+
+            this.els.mainContent.addEventListener('dragend', (e) => {
+                const card = e.target.closest('.entry-card');
+                if (card) card.classList.remove('dragging');
+                document.querySelectorAll('.entry-card').forEach(c => c.classList.remove('drag-over'));
+            });
+
+            this.els.mainContent.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (this.state.currentUnitId === 'general') return;
+                const card = e.target.closest('.entry-card');
+                if (!card || card.dataset.id === draggedCardId) return;
+                card.classList.add('drag-over');
+            });
+
+            this.els.mainContent.addEventListener('dragleave', (e) => {
+                const card = e.target.closest('.entry-card');
+                if (card) card.classList.remove('drag-over');
+            });
+
+            this.els.mainContent.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (this.state.currentUnitId === 'general') return;
+
+                const targetCard = e.target.closest('.entry-card');
+                if (!targetCard || !draggedCardId) return;
+
+                const targetId = targetCard.dataset.id;
+                if (draggedCardId !== targetId) {
+                    const unit = this.library.getUnit(this.state.currentUnitId);
+                    const fromIndex = unit.entries.findIndex(e => e.id === draggedCardId);
+                    const toIndex = unit.entries.findIndex(e => e.id === targetId);
+
+                    if (fromIndex !== -1 && toIndex !== -1) {
+                        this.library.reorderEntries(this.state.currentUnitId, fromIndex, toIndex);
+                        this.renderMainContent();
+                    }
+                }
+            });
+        }
     }
 
     async renderSidebar() {
         const units = this.library.getUnits();
         const totalEntries = units.reduce((sum, u) => sum + u.entries.length, 0);
         let pdfCount = 0;
-        try { pdfCount = await this.pdfStore.getCount(); } catch (e) { /* ignore */ }
+
+        if (this.pdfStore) {
+            try { pdfCount = await this.pdfStore.getCount(); } catch (e) { /* ignore */ }
+        }
 
         let html = `
             <li class="${this.state.currentUnitId === 'general' ? 'active' : ''}" data-id="general">
                 General <span style="float:right;opacity:0.5">${totalEntries}</span>
             </li>
+        `;
+
+        if (this.pdfStore) {
+            html += `
             <li class="${this.state.currentUnitId === 'pdfs' ? 'active' : ''}" data-id="pdfs">
                 <span style="color:#c80a0a; font-weight:600;">PDFs</span> <span style="float:right;opacity:0.5">${pdfCount}</span>
-            </li>
-            <div style="border-top:1px solid #ddd; margin: 10px 0;"></div>
-        `;
+            </li>`;
+        }
+
+        html += `<div style="border-top:1px solid #ddd; margin: 10px 0;"></div>`;
 
         html += units.map(u => `
             <li class="${u.id === this.state.currentUnitId ? 'active' : ''}" data-id="${u.id}" draggable="true">
@@ -420,6 +447,11 @@ class App {
 
     renderMainContent(filterText = '') {
         if (this.state.currentUnitId === 'pdfs') {
+            if (!this.pdfStore) {
+                this.state.currentUnitId = 'general';
+                this.renderMainContent(filterText);
+                return;
+            }
             this.els.addEntryBtn.style.display = 'inline-block';
             this.els.addEntryBtn.innerText = 'Upload PDF';
             this.renderPdfContent(filterText);
@@ -473,7 +505,6 @@ class App {
             copyBtn.onclick = (e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(entry.raw);
-                copyBtn.innerText = 'Copied!';
                 copyBtn.innerText = 'Copied!';
                 setTimeout(() => copyBtn.innerText = 'Copy LaTeX', 1000);
             };
@@ -768,6 +799,16 @@ class App {
         this.els.pdfViewerTitle.innerText = name;
         this.els.pdfViewerIframe.src = this.currentPdfBlobUrl;
         this.els.pdfViewerModal.classList.add('visible');
+    }
+
+    toggleSidebar() {
+        const container = document.querySelector('.glass-container');
+        container.classList.toggle('sidebar-collapsed');
+        const isCollapsed = container.classList.contains('sidebar-collapsed');
+        if (this.els.btnFullscreen) {
+            this.els.btnFullscreen.innerHTML = isCollapsed ? '&#9776;' : '&times;';
+            this.els.btnFullscreen.title = isCollapsed ? 'Show Sidebar' : 'Hide Sidebar';
+        }
     }
 }
 

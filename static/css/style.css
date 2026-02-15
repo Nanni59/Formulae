@@ -160,7 +160,11 @@ body {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    justify-content: center;
+    /* Center buttons */
 }
+
+
 
 /* Main Content */
 .content {
@@ -176,6 +180,21 @@ header {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
+}
+
+.btn-hamburger {
+    background: none;
+    border: none;
+    font-size: 1.6rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 8px;
+    color: #333;
+    transition: background 0.2s;
+}
+
+.btn-hamburger:hover {
+    background: rgba(0, 0, 0, 0.06);
 }
 
 header h2 {
@@ -618,4 +637,33 @@ mjx-container[jax="SVG"][display="true"] {
 /* PDF sidebar tab icon */
 .sidebar-pdf-icon {
     margin-right: 6px;
+}
+
+/* Sidebar Button Centering Tweaks */
+#btn-add-unit {
+    width: 80%;
+    margin: 10px auto;
+    display: block;
+}
+
+/* Sidebar Transition */
+.sidebar {
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    /* Prevent text wrapping during collapse */
+}
+
+/* Sidebar Collapse Mode */
+.glass-container.sidebar-collapsed .sidebar {
+    width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    border-right: none;
+    overflow: hidden;
+    opacity: 0;
+}
+
+.glass-container.sidebar-collapsed .btn-hamburger {
+    font-size: 1.8rem;
+    color: var(--primary-color);
 }
