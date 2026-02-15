@@ -45,7 +45,7 @@ body {
     border-right: 1px solid var(--glass-border);
     display: flex;
     flex-direction: column;
-    transition: width 0.3s ease, padding 0.3s ease;
+    transition: width 0.3s ease, padding-left 0.3s ease, padding-right 0.3s ease;
     overflow: hidden;
 }
 
@@ -110,16 +110,13 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    /* Better alignment for wrapped text */
+    gap: 12px;
     white-space: normal;
-    /* Allow wrapping */
 }
 
 .unit-list li span:first-child {
     flex: 1;
     overflow-wrap: break-word;
-    /* Ensure long words break if needed */
-    padding-right: 8px;
     line-height: normal;
 }
 
@@ -140,7 +137,7 @@ body {
     opacity: 0.5;
     font-size: 0.9rem;
     flex-shrink: 0;
-    /* Prevent count from squishing */
+    text-align: right;
 }
 
 
@@ -150,10 +147,17 @@ body {
     display: none;
 }
 
+/* Keep count visible for General and PDFs (no actions) */
+.unit-list li[data-id="general"]:hover .unit-count,
+.unit-list li[data-id="pdfs"]:hover .unit-count {
+    display: inline;
+}
+
 .unit-actions {
     display: none;
     gap: 5px;
     flex-shrink: 0;
+    justify-content: flex-end;
 }
 
 .unit-list li:hover .unit-actions {
@@ -670,8 +674,8 @@ mjx-container[jax="SVG"][display="true"] {
 
 /* Sidebar Button Centering Tweaks */
 #btn-add-unit {
-    width: 80%;
-    margin: 10px auto;
+    width: 100%;
+    margin: 10px 0 0;
     display: block;
 }
 
@@ -681,7 +685,8 @@ mjx-container[jax="SVG"][display="true"] {
 /* Sidebar Collapse Mode */
 .glass-container.sidebar-collapsed .sidebar {
     width: 0;
-    padding: 0;
+    padding-left: 0;
+    padding-right: 0;
     border-right: none;
 }
 

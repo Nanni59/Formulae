@@ -809,17 +809,12 @@ class App {
 
     toggleSidebar() {
         const container = document.querySelector('.glass-container');
-        const content = this.els.mainContent;
-        content.style.contentVisibility = 'hidden';
         container.classList.toggle('sidebar-collapsed');
         const isCollapsed = container.classList.contains('sidebar-collapsed');
         if (this.els.btnFullscreen) {
             this.els.btnFullscreen.innerHTML = isCollapsed ? '&#9776;' : '&times;';
             this.els.btnFullscreen.title = isCollapsed ? 'Show Sidebar' : 'Hide Sidebar';
         }
-        setTimeout(() => {
-            content.style.contentVisibility = '';
-        }, 320);
     }
 }
 
