@@ -148,10 +148,96 @@ body {
     display: none;
 }
 
-/* Keep count visible for General and PDFs (no actions) */
+/* Keep count visible for General, Desmos, and PDFs (no actions) */
 .unit-list li[data-id="general"]:hover .unit-count,
+.unit-list li[data-id="desmos"]:hover .unit-count,
 .unit-list li[data-id="pdfs"]:hover .unit-count {
     display: inline;
+}
+
+/* Desmos Cards */
+.desmos-card {
+    background: white;
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    cursor: pointer;
+    width: 100%;
+    height: 200px;
+    box-sizing: border-box;
+}
+
+.desmos-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+    border-color: #187A3D;
+}
+
+.desmos-card-icon {
+    font-size: 2.5rem;
+    text-align: center;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #187A3D;
+    opacity: 0.8;
+}
+
+.desmos-card-info {
+    text-align: center;
+}
+
+.desmos-card-info h3 {
+    margin: 0 0 4px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.desmos-card-info p {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.desmos-card-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.desmos-card:hover .desmos-card-actions {
+    opacity: 1;
+}
+
+.desmos-card-actions button {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border: 1px solid #ddd;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.desmos-card-actions button:hover {
+    background: #f9fafb;
+    border-color: #bbb;
+}
+
+.desmos-card-actions .btn-danger:hover {
+    color: var(--accent-danger);
+    border-color: var(--accent-danger);
 }
 
 .unit-actions {

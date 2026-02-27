@@ -96,6 +96,10 @@ class App {
                     this.els.pdfUploadInput.click();
                     return;
                 }
+                if (this.state.currentUnitId === 'desmos') {
+                    this.addDesmosGraph();
+                    return;
+                }
                 if (this.state.currentUnitId === 'general') {
                     alert("Please select a specific Unit to add an entry.");
                     return;
@@ -121,14 +125,20 @@ class App {
             });
         }
 
-        // PDF Viewer Modal Close
+        // PDF/Desmos Viewer Modal Close
         if (this.els.btnClosePdfViewer) {
             this.els.btnClosePdfViewer.addEventListener('click', () => {
                 if (this.currentPdfBlobUrl) {
                     URL.revokeObjectURL(this.currentPdfBlobUrl);
                     this.currentPdfBlobUrl = null;
                 }
-                this.els.pdfViewerIframe.src = '';
+                // Replace iframe to avoid beforeunload dialogs from embedded pages (e.g. Desmos)
+                const parent = this.els.pdfViewerIframe.parentNode;
+                const newIframe = document.createElement('iframe');
+                newIframe.id = 'pdf-viewer-iframe';
+                newIframe.style.cssText = 'width:100%; height:100%; border:none;';
+                parent.replaceChild(newIframe, this.els.pdfViewerIframe);
+                this.els.pdfViewerIframe = newIframe;
                 this.els.pdfViewerModal.classList.remove('visible');
             });
         }
@@ -416,6 +426,15 @@ class App {
             </li>
         `;
 
+        const desmosCount = this.getDesmosGraphs().length;
+        html += `
+        <li class="${this.state.currentUnitId === 'desmos' ? 'active' : ''}" data-id="desmos">
+            <span style="color:#187A3D; font-weight:600;">Desmos</span>
+            <div style="display:flex; align-items:center; justify-content:flex-end; min-width:50px;">
+                <span class="unit-count">${desmosCount}</span>
+            </div>
+        </li>`;
+
         if (this.pdfStore) {
             html += `
             <li class="${this.state.currentUnitId === 'pdfs' ? 'active' : ''}" data-id="pdfs">
@@ -452,6 +471,13 @@ class App {
     }
 
     renderMainContent(filterText = '') {
+        if (this.state.currentUnitId === 'desmos') {
+            this.els.addEntryBtn.style.display = 'inline-block';
+            this.els.addEntryBtn.innerText = 'Add Graph';
+            this.renderDesmosContent(filterText);
+            return;
+        }
+
         if (this.state.currentUnitId === 'pdfs') {
             if (!this.pdfStore) {
                 this.state.currentUnitId = 'general';
@@ -464,6 +490,7 @@ class App {
             return;
         }
 
+        this.els.addEntryBtn.style.display = 'inline-block';
         this.els.addEntryBtn.innerText = 'New Entry';
         let entries = [];
         if (this.state.currentUnitId === 'general') {
@@ -810,11 +837,151 @@ class App {
     toggleSidebar() {
         const container = document.querySelector('.glass-container');
         container.classList.toggle('sidebar-collapsed');
+
+        const sidebar = container.querySelector('.sidebar');
+        if (container.classList.contains('sidebar-collapsed')) {
+            sidebar.style.visibility = 'hidden';
+        } else {
+            setTimeout(() => sidebar.style.visibility = 'visible', 200);
+        }
         const isCollapsed = container.classList.contains('sidebar-collapsed');
         if (this.els.btnFullscreen) {
             this.els.btnFullscreen.innerHTML = isCollapsed ? '&#9776;' : '&times;';
             this.els.btnFullscreen.title = isCollapsed ? 'Show Sidebar' : 'Hide Sidebar';
         }
+    }
+
+    // --- Desmos Integration (Card-Based + iframe Viewer) ---
+
+    getDesmosGraphs() {
+        try {
+            return JSON.parse(localStorage.getItem('desmos_graphs') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    saveDesmosGraphs(graphs) {
+        localStorage.setItem('desmos_graphs', JSON.stringify(graphs));
+    }
+
+    extractDesmosGraphId(url) {
+        const match = url.match(/desmos\.com\/calculator\/([a-zA-Z0-9]+)/);
+        return match ? match[1] : null;
+    }
+
+    addDesmosGraph() {
+        const url = prompt('Paste a Desmos graph URL:');
+        if (!url || !url.trim()) return;
+
+        const graphId = this.extractDesmosGraphId(url.trim());
+        if (!graphId) {
+            alert('Invalid Desmos URL. Expected format: desmos.com/calculator/abc123');
+            return;
+        }
+
+        const title = prompt('Enter a title for this graph:', 'Untitled Graph');
+        if (!title || !title.trim()) return;
+
+        const graphs = this.getDesmosGraphs();
+        graphs.push({
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+            title: title.trim(),
+            url: url.trim(),
+            graphId: graphId,
+            dateAdded: new Date().toISOString()
+        });
+        this.saveDesmosGraphs(graphs);
+        this.renderSidebar();
+        this.renderMainContent();
+    }
+
+    renderDesmosContent(filterText = '') {
+        this.els.mainContent.innerHTML = '';
+        let graphs = this.getDesmosGraphs();
+
+        if (filterText) {
+            const lower = filterText.toLowerCase();
+            graphs = graphs.filter(g => g.title.toLowerCase().includes(lower));
+        }
+
+        if (graphs.length === 0) {
+            this.els.mainContent.innerHTML = '<div class="empty-state">No graphs saved yet. Click "Add Graph" to save one.</div>';
+            return;
+        }
+
+        graphs.forEach(graph => {
+            const card = document.createElement('div');
+            card.className = 'desmos-card';
+            card.dataset.id = graph.id;
+
+            const dateStr = new Date(graph.dateAdded).toLocaleDateString();
+
+            card.innerHTML = `
+                <div class="desmos-card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#187A3D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="height:50px; width:auto;">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="3" y1="12" x2="21" y2="12" opacity="0.3"/>
+                        <line x1="12" y1="3" x2="12" y2="21" opacity="0.3"/>
+                        <path d="M4 18 Q8 6, 12 12 T20 6" stroke-width="2"/>
+                    </svg>
+                </div>
+                <div class="desmos-card-info">
+                    <h3></h3>
+                    <p>${dateStr}</p>
+                </div>
+                <div class="desmos-card-actions">
+                    <button class="desmos-view-btn">View</button>
+                    <button class="desmos-rename-btn">Rename</button>
+                    <button class="desmos-delete-btn btn-danger">Delete</button>
+                </div>
+            `;
+
+            const titleEl = card.querySelector('.desmos-card-info h3');
+            titleEl.textContent = graph.title;
+            titleEl.setAttribute('title', graph.title);
+
+            card.querySelector('.desmos-view-btn').onclick = (e) => {
+                e.stopPropagation();
+                this.openDesmosViewer(graph);
+            };
+
+            card.querySelector('.desmos-rename-btn').onclick = (e) => {
+                e.stopPropagation();
+                const newName = prompt('Rename graph:', graph.title);
+                if (newName && newName.trim() && newName.trim() !== graph.title) {
+                    const graphs = this.getDesmosGraphs();
+                    const g = graphs.find(x => x.id === graph.id);
+                    if (g) {
+                        g.title = newName.trim();
+                        this.saveDesmosGraphs(graphs);
+                        this.renderMainContent();
+                    }
+                }
+            };
+
+            card.querySelector('.desmos-delete-btn').onclick = (e) => {
+                e.stopPropagation();
+                if (confirm(`Delete "${graph.title}"?`)) {
+                    const graphs = this.getDesmosGraphs().filter(x => x.id !== graph.id);
+                    this.saveDesmosGraphs(graphs);
+                    this.renderMainContent();
+                    this.renderSidebar();
+                }
+            };
+
+            card.addEventListener('click', () => {
+                this.openDesmosViewer(graph);
+            });
+
+            this.els.mainContent.append(card);
+        });
+    }
+
+    openDesmosViewer(graph) {
+        this.els.pdfViewerTitle.innerText = graph.title;
+        this.els.pdfViewerIframe.src = `https://www.desmos.com/calculator/${graph.graphId}`;
+        this.els.pdfViewerModal.classList.add('visible');
     }
 }
 
