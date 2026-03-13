@@ -240,6 +240,59 @@ body {
     border-color: var(--accent-danger);
 }
 
+/* Base action button */
+.btn-primary {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-family: inherit;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: 0.2s;
+    border: 1.5px solid transparent;
+    box-sizing: border-box;
+}
+
+/* PDF Add Link Button (extends .btn-primary) */
+.pdf-add-link-btn {
+    background: transparent;
+    color: #c80a0a;
+    border-color: #c80a0a;
+    margin-left: 8px;
+}
+
+.pdf-add-link-btn:hover {
+    background: #c80a0a;
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Outlined button variants for the main action button */
+.btn-outlined-red {
+    background: transparent !important;
+    color: #c80a0a !important;
+    border: 1.5px solid #c80a0a !important;
+}
+
+.btn-outlined-red:hover {
+    background: #c80a0a !important;
+    color: white !important;
+    transform: translateY(-1px);
+}
+
+.btn-outlined-green {
+    background: transparent !important;
+    color: #187A3D !important;
+    border: 1.5px solid #187A3D !important;
+}
+
+.btn-outlined-green:hover {
+    background: #187A3D !important;
+    color: white !important;
+    transform: translateY(-1px);
+}
+
 .unit-actions {
     display: none;
     gap: 5px;

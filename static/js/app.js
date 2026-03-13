@@ -140,8 +140,44 @@ class App {
                 parent.replaceChild(newIframe, this.els.pdfViewerIframe);
                 this.els.pdfViewerIframe = newIframe;
                 this.els.pdfViewerModal.classList.remove('visible');
+                // Clear viewer navigation state
+                this.viewerItems = null;
+                this.viewerIndex = -1;
+                this.viewerType = null;
             });
         }
+
+        // Arrow key navigation in viewer modal
+        document.addEventListener('keydown', (e) => {
+            if (!this.els.pdfViewerModal.classList.contains('visible')) return;
+            if (!this.viewerItems || this.viewerItems.length <= 1) return;
+
+            let newIndex = this.viewerIndex;
+            if (e.key === 'ArrowRight') {
+                newIndex = (this.viewerIndex + 1) % this.viewerItems.length;
+            } else if (e.key === 'ArrowLeft') {
+                newIndex = (this.viewerIndex - 1 + this.viewerItems.length) % this.viewerItems.length;
+            } else {
+                return;
+            }
+
+            e.preventDefault();
+            this.viewerIndex = newIndex;
+            const item = this.viewerItems[newIndex];
+
+            if (this.viewerType === 'desmos') {
+                this.els.pdfViewerTitle.innerText = item.title;
+                this.els.pdfViewerIframe.src = `https://www.desmos.com/calculator/${item.graphId}`;
+            } else {
+                // PDF (linked or uploaded)
+                if (item.type === 'linked') {
+                    this.els.pdfViewerTitle.innerText = item.name;
+                    this.els.pdfViewerIframe.src = item.url;
+                } else {
+                    this.openPdfViewer(item.id, item.name);
+                }
+            }
+        });
 
         // Add Unit
         if (this.els.addUnitBtn) {
@@ -412,10 +448,12 @@ class App {
         const units = this.library.getUnits();
         const totalEntries = units.reduce((sum, u) => sum + u.entries.length, 0);
         let pdfCount = 0;
+        const pdfLinkCount = this.getPdfLinks().length;
 
         if (this.pdfStore) {
             try { pdfCount = await this.pdfStore.getCount(); } catch (e) { /* ignore */ }
         }
+        pdfCount += pdfLinkCount;
 
         let html = `
             <li class="${this.state.currentUnitId === 'general' ? 'active' : ''}" data-id="general">
@@ -474,6 +512,9 @@ class App {
         if (this.state.currentUnitId === 'desmos') {
             this.els.addEntryBtn.style.display = 'inline-block';
             this.els.addEntryBtn.innerText = 'Add Graph';
+            this.els.addEntryBtn.className = 'btn-primary btn-outlined-green';
+            const linkBtn = document.getElementById('pdf-add-link-btn');
+            if (linkBtn) linkBtn.remove();
             this.renderDesmosContent(filterText);
             return;
         }
@@ -486,12 +527,30 @@ class App {
             }
             this.els.addEntryBtn.style.display = 'inline-block';
             this.els.addEntryBtn.innerText = 'Upload PDF';
+            this.els.addEntryBtn.className = 'btn-primary btn-outlined-red';
+
+            // Inject "Add Link" button next to "Upload PDF" if not already present
+            let addLinkBtn = document.getElementById('pdf-add-link-btn');
+            if (!addLinkBtn) {
+                addLinkBtn = document.createElement('button');
+                addLinkBtn.id = 'pdf-add-link-btn';
+                addLinkBtn.className = 'btn-primary btn-outlined-red pdf-add-link-btn';
+                addLinkBtn.innerText = 'Add Link';
+                addLinkBtn.addEventListener('click', () => this.addPdfLink());
+                this.els.addEntryBtn.parentNode.insertBefore(addLinkBtn, this.els.addEntryBtn.nextSibling);
+            }
+
             this.renderPdfContent(filterText);
             return;
         }
 
+        // Remove "Add Link" button when not on PDFs tab
+        const existingLinkBtn = document.getElementById('pdf-add-link-btn');
+        if (existingLinkBtn) existingLinkBtn.remove();
+
         this.els.addEntryBtn.style.display = 'inline-block';
         this.els.addEntryBtn.innerText = 'New Entry';
+        this.els.addEntryBtn.className = 'btn-primary';
         let entries = [];
         if (this.state.currentUnitId === 'general') {
             entries = this.library.getAllEntries();
@@ -735,7 +794,7 @@ class App {
 
     async renderPdfContent(filterText = '') {
         this.els.mainContent.innerHTML = '';
-        let pdfs = [];
+        let pdfs;
         try {
             pdfs = await this.pdfStore.getAllPdfs();
         } catch (e) {
@@ -743,23 +802,37 @@ class App {
             return;
         }
 
+        // Merge linked PDFs
+        let linkedPdfs = this.getPdfLinks();
+        let allPdfs = [
+            ...pdfs.map(p => ({ ...p, type: 'uploaded' })),
+            ...linkedPdfs.map(l => ({ ...l, type: 'linked', size: 0 }))
+        ];
+
+        // Sort by date (newest first)
+        allPdfs.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+
         if (filterText) {
             const lower = filterText.toLowerCase();
-            pdfs = pdfs.filter(p => p.name.toLowerCase().includes(lower));
+            allPdfs = allPdfs.filter(p => p.name.toLowerCase().includes(lower));
         }
 
-        if (pdfs.length === 0) {
-            this.els.mainContent.innerHTML = '<div class="empty-state">No PDFs uploaded yet. Click "Upload PDF" to add one.</div>';
+        if (allPdfs.length === 0) {
+            this.els.mainContent.innerHTML = '<div class="empty-state">No PDFs yet. Click "Upload PDF" or "Add Link" to add one.</div>';
             return;
         }
 
-        pdfs.forEach(pdf => {
+        // Store for arrow key navigation
+        this._lastPdfList = allPdfs;
+
+        allPdfs.forEach(pdf => {
             const card = document.createElement('div');
             card.className = 'pdf-card';
             card.dataset.id = pdf.id;
+            const isLinked = pdf.type === 'linked';
 
-            const sizeMB = (pdf.size / (1024 * 1024)).toFixed(1);
             const dateStr = new Date(pdf.dateAdded).toLocaleDateString();
+            const metaText = isLinked ? dateStr : `${(pdf.size / (1024 * 1024)).toFixed(1)} MB · ${dateStr}`;
 
             card.innerHTML = `
                 <div class="pdf-card-icon">
@@ -770,8 +843,8 @@ class App {
                     </svg>
                 </div>
                 <div class="pdf-card-info">
-                    <h3 title="${pdf.name}">${pdf.name}</h3>
-                    <p>${sizeMB} MB · ${dateStr}</p>
+                    <h3></h3>
+                    <p>${metaText}</p>
                 </div>
                 <div class="pdf-card-actions">
                     <button class="pdf-view-btn">View</button>
@@ -780,16 +853,34 @@ class App {
                 </div>
             `;
 
+            // Set title safely via textContent (XSS prevention)
+            const titleEl = card.querySelector('.pdf-card-info h3');
+            titleEl.textContent = pdf.name;
+            titleEl.setAttribute('title', pdf.name);
+
             card.querySelector('.pdf-view-btn').onclick = (e) => {
                 e.stopPropagation();
-                this.openPdfViewer(pdf.id, pdf.name);
+                if (isLinked) {
+                    this.openPdfViewer(pdf.id, pdf.name, pdf.url);
+                } else {
+                    this.openPdfViewer(pdf.id, pdf.name);
+                }
             };
 
             card.querySelector('.pdf-rename-btn').onclick = async (e) => {
                 e.stopPropagation();
                 const newName = prompt('Rename PDF:', pdf.name);
                 if (newName && newName.trim() && newName.trim() !== pdf.name) {
-                    await this.pdfStore.renamePdf(pdf.id, newName.trim());
+                    if (isLinked) {
+                        const links = this.getPdfLinks();
+                        const link = links.find(l => l.id === pdf.id);
+                        if (link) {
+                            link.name = newName.trim();
+                            this.savePdfLinks(links);
+                        }
+                    } else {
+                        await this.pdfStore.renamePdf(pdf.id, newName.trim());
+                    }
                     this.renderMainContent();
                     this.renderSidebar();
                 }
@@ -798,21 +889,61 @@ class App {
             card.querySelector('.pdf-delete-btn').onclick = async (e) => {
                 e.stopPropagation();
                 if (confirm(`Delete "${pdf.name}"?`)) {
-                    await this.pdfStore.deletePdf(pdf.id);
+                    if (isLinked) {
+                        const links = this.getPdfLinks().filter(l => l.id !== pdf.id);
+                        this.savePdfLinks(links);
+                    } else {
+                        await this.pdfStore.deletePdf(pdf.id);
+                    }
                     this.renderMainContent();
                     this.renderSidebar();
                 }
             };
 
             card.addEventListener('click', () => {
-                this.openPdfViewer(pdf.id, pdf.name);
+                if (isLinked) {
+                    this.openPdfViewer(pdf.id, pdf.name, pdf.url);
+                } else {
+                    this.openPdfViewer(pdf.id, pdf.name);
+                }
             });
 
             this.els.mainContent.append(card);
         });
     }
 
-    async openPdfViewer(id, name) {
+    async openPdfViewer(id, name, url) {
+        // Track items for arrow key navigation (only set if not already navigating)
+        if (!this.viewerItems || this.viewerType !== 'pdf') {
+            this.viewerType = 'pdf';
+            this.viewerItems = this._lastPdfList || [];
+            this.viewerIndex = this.viewerItems.findIndex(p => p.id === id);
+        }
+
+        // If a URL is provided (linked PDF), validate and load it directly in the iframe
+        if (url) {
+            try {
+                const parsed = new URL(url);
+                if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+                    alert('Invalid URL: only https and http links are allowed.');
+                    return;
+                }
+            } catch (e) {
+                alert('Invalid URL format.');
+                return;
+            }
+            // Harden iframe for external content
+            this.els.pdfViewerIframe.setAttribute('sandbox', 'allow-same-origin');
+            this.els.pdfViewerTitle.innerText = name;
+            this.els.pdfViewerIframe.src = url;
+            this.els.pdfViewerModal.classList.add('visible');
+            return;
+        }
+
+        // Remove sandbox for local blob PDFs (browser PDF viewer needs full access)
+        this.els.pdfViewerIframe.removeAttribute('sandbox');
+
+        // Otherwise, load from IndexedDB blob
         let blob;
         try {
             blob = await this.pdfStore.getPdfBlob(id);
@@ -832,6 +963,39 @@ class App {
         this.els.pdfViewerTitle.innerText = name;
         this.els.pdfViewerIframe.src = this.currentPdfBlobUrl;
         this.els.pdfViewerModal.classList.add('visible');
+    }
+
+    // --- PDF Link Helpers ---
+
+    getPdfLinks() {
+        try {
+            return JSON.parse(localStorage.getItem('pdf_links') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    savePdfLinks(links) {
+        localStorage.setItem('pdf_links', JSON.stringify(links));
+    }
+
+    addPdfLink() {
+        const url = prompt('Paste a PDF link:');
+        if (!url || !url.trim()) return;
+
+        const title = prompt('Enter a title for this PDF:', 'Untitled PDF');
+        if (!title || !title.trim()) return;
+
+        const links = this.getPdfLinks();
+        links.push({
+            id: 'link-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+            name: title.trim(),
+            url: url.trim(),
+            dateAdded: new Date().toISOString()
+        });
+        this.savePdfLinks(links);
+        this.renderSidebar();
+        this.renderMainContent();
     }
 
     toggleSidebar() {
@@ -979,6 +1143,11 @@ class App {
     }
 
     openDesmosViewer(graph) {
+        // Track items for arrow key navigation
+        this.viewerType = 'desmos';
+        this.viewerItems = this.getDesmosGraphs();
+        this.viewerIndex = this.viewerItems.findIndex(g => g.id === graph.id);
+
         this.els.pdfViewerTitle.innerText = graph.title;
         this.els.pdfViewerIframe.src = `https://www.desmos.com/calculator/${graph.graphId}`;
         this.els.pdfViewerModal.classList.add('visible');
