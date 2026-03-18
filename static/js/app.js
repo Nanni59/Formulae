@@ -932,16 +932,11 @@ class App {
                 alert('Invalid URL format.');
                 return;
             }
-            // Harden iframe for external content
-            this.els.pdfViewerIframe.setAttribute('sandbox', 'allow-same-origin');
             this.els.pdfViewerTitle.innerText = name;
             this.els.pdfViewerIframe.src = url;
             this.els.pdfViewerModal.classList.add('visible');
             return;
         }
-
-        // Remove sandbox for local blob PDFs (browser PDF viewer needs full access)
-        this.els.pdfViewerIframe.removeAttribute('sandbox');
 
         // Otherwise, load from IndexedDB blob
         let blob;
