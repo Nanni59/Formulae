@@ -94,6 +94,7 @@ body {
 .unit-section {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .unit-list {
@@ -113,9 +114,12 @@ body {
     align-items: center;
     gap: 12px;
     white-space: normal;
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
 }
 
-.unit-list li span:first-child {
+.unit-list li > span:first-child {
     flex: 1;
     overflow-wrap: break-word;
     line-height: normal;
@@ -133,26 +137,63 @@ body {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
+.nested-unit-list {
+    list-style: none;
+    padding-left: 20px;
+    margin: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.nested-unit-list li {
+    padding: 8px 10px;
+    font-size: 0.9em;
+}
+
 .unit-count {
     color: var(--text-secondary);
     opacity: 0.5;
     font-size: 0.9rem;
     flex-shrink: 0;
     text-align: right;
+    transition: opacity 0.2s;
 }
 
 
 
 /* On Li Hover: Hide count, show actions */
 .unit-list li:hover .unit-count {
-    display: none;
+    opacity: 0;
 }
 
 /* Keep count visible for General, Desmos, and PDFs (no actions) */
 .unit-list li[data-id="general"]:hover .unit-count,
 .unit-list li[data-id="desmos"]:hover .unit-count,
 .unit-list li[data-id="pdfs"]:hover .unit-count {
-    display: inline;
+    opacity: 0.5;
+}
+
+/* Course folder icon interaction */
+.course-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
+    cursor: pointer;
+}
+.course-icon .folder-svg {
+    display: block;
+}
+.course-icon .arrow-svg {
+    display: none;
+}
+.unit-list li:hover .course-icon .folder-svg {
+    display: none;
+}
+.unit-list li:hover .course-icon .arrow-svg {
+    display: block;
 }
 
 /* Desmos Cards */
@@ -294,14 +335,22 @@ body {
 }
 
 .unit-actions {
-    display: none;
+    display: flex;
     gap: 5px;
     flex-shrink: 0;
     justify-content: flex-end;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
 }
 
 .unit-list li:hover .unit-actions {
-    display: flex;
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .delete-unit-btn,
@@ -402,7 +451,6 @@ header h2 {
 }
 
 .entry-card:hover {
-    transform: translateY(-2px);
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
     border-color: var(--primary-color);
 }
@@ -722,6 +770,37 @@ mjx-container[jax="SVG"][display="true"] {
     margin-right: 0 !important;
 }
 
+/* Course Cards (Folders) */
+.course-card {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    cursor: pointer;
+    width: 100%;
+    height: 160px;
+    box-sizing: border-box;
+}
+
+.course-card:hover {
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+    border-color: var(--primary-color);
+}
+
+.course-card-icon {
+    font-size: 2.5rem;
+    text-align: center;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-color);
+}
+
 /* PDF Cards */
 .pdf-card {
     background: white;
@@ -739,7 +818,6 @@ mjx-container[jax="SVG"][display="true"] {
 }
 
 .pdf-card:hover {
-    transform: translateY(-2px);
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
     border-color: var(--primary-color);
 }
@@ -874,4 +952,117 @@ mjx-container[jax="SVG"][display="true"] {
         opacity: 0;
         transform: translateX(-50%) translateY(5px);
     }
+}
+
+/* --- Custom Prompt / Confirm Modal --- */
+.link-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+}
+
+.link-modal-overlay.active {
+    display: flex;
+}
+
+.link-modal {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 25px;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.link-modal h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.link-modal .modal-description {
+    font-size: 14px;
+    color: #767676;
+    margin-bottom: 20px;
+}
+
+.link-modal-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+}
+
+.link-modal-input:hover,
+.link-modal-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 1px var(--primary-color);
+}
+
+.link-modal-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+    background-color: #fff;
+    cursor: pointer;
+}
+
+.link-modal-select:hover,
+.link-modal-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 1px var(--primary-color);
+}
+
+.link-modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.link-modal-buttons button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.link-modal-buttons .btn-cancel {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+.link-modal-buttons .btn-cancel:hover {
+    background-color: #e0e0e0;
+}
+
+.link-modal-buttons .btn-save {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.link-modal-buttons .btn-save:hover {
+    opacity: 0.9;
 }

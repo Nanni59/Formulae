@@ -12,7 +12,20 @@ class FormulaLibrary {
         const stored = localStorage.getItem(this.STORAGE_KEY);
         if (stored) {
             try {
-                return JSON.parse(stored);
+                const parsed = JSON.parse(stored);
+                // Migration: add courses if not present
+                if (!parsed.courses) {
+                    parsed.courses = [];
+                }
+                // Migration: add courseId to units if not present
+                if (!parsed.units || !Array.isArray(parsed.units)) {
+                    parsed.units = [];
+                } else {
+                    parsed.units.forEach(u => {
+                        if (u.courseId === undefined) u.courseId = null;
+                    });
+                }
+                return parsed;
             } catch (e) {
                 console.error("Failed to parse storage", e);
                 return this.getDefaultSchema();
@@ -28,12 +41,14 @@ class FormulaLibrary {
 
     getDefaultSchema() {
         return {
-            version: "1.0",
+            version: "1.1",
             lastUpdated: new Date().toISOString(),
+            courses: [],
             units: [
                 {
                     id: "u-default",
                     name: "General",
+                    courseId: null,
                     entries: []
                 }
             ]
@@ -55,10 +70,11 @@ class FormulaLibrary {
         return this.data.units.find(u => u.id === unitId);
     }
 
-    createUnit(name) {
+    createUnit(name, courseId = null) {
         const newUnit = {
             id: 'u-' + Date.now(),
             name: name,
+            courseId: courseId,
             entries: []
         };
         this.data.units.push(newUnit);
@@ -79,6 +95,66 @@ class FormulaLibrary {
     deleteUnit(unitId) {
         this.data.units = this.data.units.filter(u => u.id !== unitId);
         this.saveData();
+    }
+
+    // --- Course Operations ---
+
+    getCourses() {
+        return this.data.courses || [];
+    }
+
+    getCourse(courseId) {
+        return this.getCourses().find(c => c.id === courseId);
+    }
+
+    createCourse(name) {
+        if (!this.data.courses) this.data.courses = [];
+        const newCourse = {
+            id: 'c-' + Date.now(),
+            name: name
+        };
+        this.data.courses.push(newCourse);
+        this.saveData();
+        return newCourse;
+    }
+
+    renameCourse(courseId, newName) {
+        const course = this.getCourse(courseId);
+        if (course) {
+            course.name = newName;
+            this.saveData();
+            return true;
+        }
+        return false;
+    }
+
+    deleteCourse(courseId) {
+        if (!this.data.courses) return;
+        this.data.courses = this.data.courses.filter(c => c.id !== courseId);
+        // Unassign all units that were in this course to prevent data loss
+        this.data.units.forEach(u => {
+            if (u.courseId === courseId) {
+                u.courseId = null;
+            }
+        });
+        this.saveData();
+    }
+
+    assignUnitToCourse(unitId, courseId) {
+        const unit = this.getUnit(unitId);
+        if (unit) {
+            unit.courseId = courseId; // Set to null to unassign
+            this.saveData();
+            return true;
+        }
+        return false;
+    }
+
+    getEntriesForCourse(courseId) {
+        // Find all units belonging to this course
+        const unitsInCourse = this.data.units.filter(u => u.courseId === courseId);
+        // Flatten their entries into one array
+        return unitsInCourse.flatMap(u => u.entries);
     }
 
     addEntry(unitId, title, rawLatex, isTikZ = false, tags = []) {

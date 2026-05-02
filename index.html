@@ -31,7 +31,7 @@
         <aside class="sidebar">
             <div class="sidebar-inner">
                 <div class="brand">
-                    <h1 data-tooltip="Version 1.2">Formulae</h1>
+                    <h1 data-tooltip="Version 1.3">Formulae</h1>
                     <p>Repository</p>
                 </div>
 
@@ -40,12 +40,13 @@
                 </div>
 
                 <div class="unit-section">
-                    <h3>Units</h3>
                     <ul id="unit-list" class="unit-list">
                         <!-- Injected by app.js -->
                     </ul>
                     <button id="btn-add-unit" class="btn-secondary" style="width:100%; margin-top:10px;">New
                         Unit</button>
+                    <button id="btn-add-course" class="btn-secondary" style="width:100%; margin-top:5px;">New
+                        Course</button>
                 </div>
 
                 <div class="sidebar-footer">
@@ -129,6 +130,25 @@
             </div>
             <div class="modal-body" style="padding:0; flex:1; overflow:hidden;">
                 <iframe id="pdf-viewer-iframe" style="width:100%; height:100%; border:none;"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal (Replaces native prompt/confirm) -->
+    <div id="customModalOverlay" class="link-modal-overlay" aria-hidden="true">
+        <div class="link-modal" role="dialog" aria-modal="true" aria-labelledby="customModalTitle"
+            aria-describedby="customModalMessage" tabindex="-1">
+            <h2 id="customModalTitle">Title</h2>
+            <div class="modal-description" id="customModalMessage">Message</div>
+
+            <input type="text" id="customModalInputText" class="link-modal-input" style="display:none;"
+                spellcheck="false">
+
+            <select id="customModalInputSelect" class="link-modal-select" style="display:none;"></select>
+
+            <div class="link-modal-buttons">
+                <button class="btn-cancel" id="customModalCancel">Cancel</button>
+                <button class="btn-save" id="customModalSave">OK</button>
             </div>
         </div>
     </div>

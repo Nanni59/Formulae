@@ -21,7 +21,8 @@ class App {
             editingEntryId: null, // null = View Mode, ID = Edit Mode
             viewingEntryId: null, // For view modal
             isNew: false,
-            visibleEntries: [] // Track currently filtered entries for navigation
+            visibleEntries: [], // Track currently filtered entries for navigation
+            expandedCourses: new Set(JSON.parse(localStorage.getItem('expandedCourses')) || [])
         };
 
         // DOM Elements
@@ -31,6 +32,7 @@ class App {
             searchBar: document.getElementById('search-input'),
             addEntryBtn: document.getElementById('btn-add-entry'),
             addUnitBtn: document.getElementById('btn-add-unit'),
+            addCourseBtn: document.getElementById('btn-add-course'),
 
             // Edit Modal
             modal: document.getElementById('entry-modal'),
@@ -72,6 +74,136 @@ class App {
         this.renderSidebar();
         this.renderMainContent();
         this.attachListeners();
+    }
+
+    _escapeHtml(unsafe) {
+        if (typeof unsafe !== 'string') return '';
+        return unsafe
+             .replace(/&/g, "&amp;")
+             .replace(/</g, "&lt;")
+             .replace(/>/g, "&gt;")
+             .replace(/"/g, "&quot;")
+             .replace(/'/g, "&#039;");
+    }
+
+    showCustomModal(options) {
+        return new Promise((resolve) => {
+            const overlay = document.getElementById('customModalOverlay');
+            const dialog = overlay ? overlay.querySelector('.link-modal') : null;
+            const titleEl = document.getElementById('customModalTitle');
+            const msgEl = document.getElementById('customModalMessage');
+            const inputTxt = document.getElementById('customModalInputText');
+            const inputSel = document.getElementById('customModalInputSelect');
+            const btnCancel = document.getElementById('customModalCancel');
+            const btnSave = document.getElementById('customModalSave');
+
+            if (!overlay || !dialog) {
+                console.error("Custom Modal HTML not found.");
+                resolve(null);
+                return;
+            }
+
+            const previousFocus = document.activeElement;
+
+            titleEl.textContent = options.title || 'Prompt';
+            msgEl.textContent = options.message || '';
+            
+            inputTxt.style.display = 'none';
+            inputSel.style.display = 'none';
+
+            let firstFocusable = btnCancel;
+
+            if (options.type === 'text') {
+                inputTxt.style.display = 'block';
+                inputTxt.value = options.initialValue || '';
+                firstFocusable = inputTxt;
+            } else if (options.type === 'select') {
+                inputSel.style.display = 'block';
+                inputSel.innerHTML = '';
+                (options.selectOptions || []).forEach(opt => {
+                    const o = document.createElement('option');
+                    o.value = opt.value;
+                    o.textContent = opt.label;
+                    inputSel.appendChild(o);
+                });
+                firstFocusable = inputSel;
+            }
+
+            const getFocusableElements = () => {
+                return Array.from(dialog.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+                    .filter(el => el.style.display !== 'none' && !el.disabled);
+            };
+
+            const handleTrap = (e) => {
+                if (e.key === 'Tab') {
+                    const focusable = getFocusableElements();
+                    if (focusable.length === 0) return;
+                    const first = focusable[0];
+                    const last = focusable[focusable.length - 1];
+
+                    if (e.shiftKey && document.activeElement === first) {
+                        last.focus();
+                        e.preventDefault();
+                    } else if (!e.shiftKey && document.activeElement === last) {
+                        first.focus();
+                        e.preventDefault();
+                    }
+                }
+            };
+
+            const handleCancel = () => {
+                cleanup();
+                resolve(options.type === 'confirm' ? false : null);
+            };
+
+            const handleSave = () => {
+                cleanup();
+                if (options.type === 'confirm') resolve(true);
+                else if (options.type === 'text') resolve(inputTxt.value);
+                else if (options.type === 'select') resolve(inputSel.value);
+                else resolve(null);
+            };
+
+            const handleKeydown = (e) => {
+                if (e.key === 'Enter' && options.type !== 'confirm') {
+                    e.preventDefault();
+                    handleSave();
+                } else if (e.key === 'Escape') {
+                    handleCancel();
+                } else {
+                    handleTrap(e);
+                }
+            };
+
+            const cleanup = () => {
+                overlay.classList.remove('active');
+                overlay.setAttribute('aria-hidden', 'true');
+                btnCancel.removeEventListener('click', handleCancel);
+                btnSave.removeEventListener('click', handleSave);
+                dialog.removeEventListener('keydown', handleKeydown);
+                if (previousFocus) {
+                    previousFocus.focus();
+                }
+            };
+
+            btnCancel.addEventListener('click', handleCancel);
+            btnSave.addEventListener('click', handleSave);
+            dialog.addEventListener('keydown', handleKeydown);
+
+            overlay.classList.add('active');
+            overlay.setAttribute('aria-hidden', 'false');
+            setTimeout(() => firstFocusable.focus(), 50);
+        });
+    }
+
+    toggleCourse(courseId) {
+        if (this.state.expandedCourses.has(courseId)) {
+            this.state.expandedCourses.delete(courseId);
+        } else {
+            this.state.expandedCourses.add(courseId);
+        }
+        localStorage.setItem('expandedCourses', JSON.stringify(Array.from(this.state.expandedCourses)));
+        this.renderSidebar();
     }
 
     attachListeners() {
@@ -181,11 +313,32 @@ class App {
 
         // Add Unit
         if (this.els.addUnitBtn) {
-            this.els.addUnitBtn.addEventListener('click', () => {
-                const name = prompt("Enter name for new Unit:");
+            this.els.addUnitBtn.addEventListener('click', async () => {
+                const name = await this.showCustomModal({
+                    title: "New Unit",
+                    message: "Enter name for new Unit:",
+                    type: "text"
+                });
                 if (name && name.trim()) {
                     const newUnit = this.library.createUnit(name.trim());
                     this.state.currentUnitId = newUnit.id;
+                    this.renderSidebar();
+                    this.renderMainContent();
+                }
+            });
+        }
+
+        // Add Course
+        if (this.els.addCourseBtn) {
+            this.els.addCourseBtn.addEventListener('click', async () => {
+                const name = await this.showCustomModal({
+                    title: "New Course",
+                    message: "Enter name for new Course:",
+                    type: "text"
+                });
+                if (name && name.trim()) {
+                    const newCourse = this.library.createCourse(name.trim());
+                    this.state.currentUnitId = newCourse.id;
                     this.renderSidebar();
                     this.renderMainContent();
                 }
@@ -245,12 +398,25 @@ class App {
 
         // Sidebar selection
         if (this.els.sidebarList) {
-            this.els.sidebarList.addEventListener('click', (e) => {
+            this.els.sidebarList.addEventListener('click', async (e) => {
+                // Course Toggle Collapse/Expand
+                if (e.target.closest('.course-toggle')) {
+                    e.stopPropagation();
+                    const courseId = e.target.closest('.course-toggle').dataset.courseId;
+                    this.toggleCourse(courseId);
+                    return;
+                }
+
                 // Check if delete button was clicked
                 if (e.target.closest('.delete-unit-btn')) {
                     e.stopPropagation();
                     const unitId = e.target.closest('li').dataset.id;
-                    if (confirm('Delete this Unit and all its formulas?')) {
+                    const isConfirmed = await this.showCustomModal({
+                        title: "Confirm Deletion",
+                        message: "Delete this Unit and all its formulas?",
+                        type: "confirm"
+                    });
+                    if (isConfirmed) {
                         this.library.deleteUnit(unitId);
                         if (this.state.currentUnitId === unitId) {
                             this.state.currentUnitId = 'general';
@@ -258,16 +424,98 @@ class App {
                         this.renderSidebar();
                         this.renderMainContent();
                     }
+                    return;
                 }
 
-                // Rename
+                // Course Delete
+                if (e.target.closest('.delete-course-btn')) {
+                    e.stopPropagation();
+                    const courseId = e.target.closest('li').dataset.id;
+                    const isConfirmed = await this.showCustomModal({
+                        title: "Delete Course",
+                        message: "Delete this Course? Units will be unassigned.",
+                        type: "confirm"
+                    });
+                    if (isConfirmed) {
+                        this.library.deleteCourse(courseId);
+                        if (this.state.currentUnitId === courseId) {
+                            this.state.currentUnitId = 'general';
+                        }
+                        this.renderSidebar();
+                        this.renderMainContent();
+                    }
+                    return;
+                }
+
+                // Course Rename
+                if (e.target.closest('.rename-course-btn')) {
+                    e.stopPropagation();
+                    const li = e.target.closest('li');
+                    const courseId = li.dataset.id;
+                    const course = this.library.getCourse(courseId);
+                    
+                    const newName = await this.showCustomModal({
+                        title: "Rename Course",
+                        message: "Enter new name:",
+                        initialValue: course.name,
+                        type: "text"
+                    });
+                    if (newName && newName.trim() && newName.trim() !== course.name) {
+                        this.library.renameCourse(courseId, newName.trim());
+                        this.renderSidebar();
+                        if (this.state.currentUnitId === courseId) {
+                            this.renderMainContent();
+                        }
+                    }
+                    return;
+                }
+
+                // Move Unit
+                if (e.target.closest('.move-unit-btn')) {
+                    e.stopPropagation();
+                    const unitId = e.target.closest('li').dataset.id;
+                    const courses = this.library.getCourses();
+                    
+                    if (courses.length === 0) {
+                        alert('Create a course first before assigning units.');
+                        return;
+                    }
+                    
+                    const sortedCourses = [...courses].sort((a, b) => a.name.localeCompare(b.name));
+                    
+                    let selectOptions = [];
+                    sortedCourses.forEach((c) => {
+                        selectOptions.push({ label: c.name, value: c.id });
+                    });
+                    
+                    const choice = await this.showCustomModal({
+                        title: "Move to Course",
+                        message: "Select a course to assign to:",
+                        type: "select",
+                        selectOptions: selectOptions
+                    });
+                    
+                    if (choice !== null) {
+                        this.library.assignUnitToCourse(unitId, choice);
+                        this.renderSidebar();
+                        this.renderMainContent();
+                    }
+                    return;
+                }
+
+                // Unit Rename
                 if (e.target.closest('.rename-unit-btn')) {
                     e.stopPropagation();
                     const li = e.target.closest('li');
                     const unitId = li.dataset.id;
                     const unit = this.library.getUnit(unitId);
 
-                    const newName = prompt("Rename Unit:", unit.name);
+                    const newName = await this.showCustomModal({
+                        title: "Rename Unit",
+                        message: "Enter new name:",
+                        initialValue: unit.name,
+                        type: "text"
+                    });
                     if (newName && newName.trim() && newName.trim() !== unit.name) {
                         this.library.renameUnit(unitId, newName.trim());
                         this.renderSidebar();
@@ -485,21 +733,75 @@ class App {
 
         html += `<div style="border-top:1px solid #ddd; margin: 10px 0;"></div>`;
 
-        html += units.map(u => `
+        const courses = this.library.getCourses();
+        const unassignedUnits = units.filter(u => !u.courseId);
+
+        if (courses.length > 0) {
+            html += `<div style="padding: 10px 10px 5px; font-size: 0.8em; color: #888; text-transform: uppercase; font-weight: 600;">Courses</div>`;
+        }
+
+        courses.forEach(c => {
+            const courseUnits = units.filter(u => u.courseId === c.id);
+            const courseEntriesCount = courseUnits.reduce((sum, u) => sum + u.entries.length, 0);
+
+            const isExpanded = this.state.expandedCourses.has(c.id);
+            const expandIcon = isExpanded 
+                ? `<svg class="arrow-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"></polyline></svg>` 
+                : `<svg class="arrow-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s; transform: rotate(-90deg);"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+
+            html += `
+            <li class="${c.id === this.state.currentUnitId ? 'active' : ''}" data-id="${c.id}">
+                <span style="font-weight: 600; display:flex; align-items:center;">
+                    <span class="course-toggle" data-course-id="${c.id}">
+                        <span class="course-icon">
+                            <svg class="folder-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                            ${expandIcon}
+                        </span>
+                    </span><span class="course-title-text">${this._escapeHtml(c.name)}</span>
+                </span>
+                <div style="display:flex; align-items:center; justify-content:flex-end; min-width:50px;">
+                    <span class="unit-count">${courseEntriesCount}</span>
+                    <div class="unit-actions">
+                         <button class="rename-course-btn" title="Rename Course">&#9998;</button>
+                         <button class="delete-course-btn" title="Delete Course">&times;</button>
+                    </div>
+                </div>
+            </li>`;
+
+            if (isExpanded && courseUnits.length > 0) {
+                html += `<ul class="nested-unit-list" style="display:block;">`;
+                html += courseUnits.map(u => this._generateUnitHTML(u)).join('');
+                html += `</ul>`;
+            }
+        });
+
+        if (unassignedUnits.length > 0) {
+            if (courses.length > 0) {
+                html += `<div style="padding: 10px 10px 5px; font-size: 0.8em; color: #888; text-transform: uppercase; font-weight: 600;">Units</div>`;
+            }
+            html += unassignedUnits.map(u => this._generateUnitHTML(u)).join('');
+        }
+
+        this.els.sidebarList.innerHTML = html;
+        this.setupSidebarDragDrop();
+    }
+
+    _generateUnitHTML(u) {
+        return `
             <li class="${u.id === this.state.currentUnitId ? 'active' : ''}" data-id="${u.id}" draggable="true">
-                <span>${u.name}</span>
+                <span>${this._escapeHtml(u.name)}</span>
                 <div style="display:flex; align-items:center; justify-content:flex-end; min-width:50px;">
                     <span class="unit-count">${u.entries.length}</span>
                     <div class="unit-actions">
+                         <button class="move-unit-btn" title="Move to Course" style="padding-top:2px;">
+                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                         </button>
                          <button class="rename-unit-btn" title="Rename Unit">&#9998;</button>
                          <button class="delete-unit-btn" title="Delete Unit">&times;</button>
                     </div>
                 </div>
             </li>
-        `).join('');
-
-        this.els.sidebarList.innerHTML = html;
-        this.setupSidebarDragDrop();
+        `;
     }
 
     setupSidebarDragDrop() {
@@ -551,11 +853,88 @@ class App {
         this.els.addEntryBtn.style.display = 'inline-block';
         this.els.addEntryBtn.innerText = 'New Entry';
         this.els.addEntryBtn.className = 'btn-primary';
+        
         let entries = [];
+        
         if (this.state.currentUnitId === 'general') {
-            entries = this.library.getAllEntries();
             this.els.addEntryBtn.style.display = 'none';
+            this.els.mainContent.innerHTML = '';
+            
+            if (filterText) {
+                entries = this.library.getAllEntries();
+            } else {
+                const courses = this.library.getCourses();
+                const units = this.library.getUnits();
+                const unassignedUnits = units.filter(u => !u.courseId);
+                
+                if (courses.length === 0 && unassignedUnits.length === 0) {
+                    this.els.mainContent.innerHTML = '<div class="empty-state">No courses or units found. Add a unit in the sidebar.</div>';
+                    return;
+                }
+                
+                // Render Course Cards
+                courses.forEach(c => {
+                    const card = document.createElement('div');
+                    card.className = 'course-card';
+                    card.dataset.id = c.id;
+                    
+                    const courseUnits = units.filter(u => u.courseId === c.id);
+                    const courseEntriesCount = courseUnits.reduce((sum, u) => sum + u.entries.length, 0);
+                    
+                    card.innerHTML = `
+                        <div class="course-card-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                        </div>
+                        <div class="desmos-card-info">
+                            <h3></h3>
+                            <p style="font-size: 0.8em; color: #666; margin: 0;"></p>
+                        </div>
+                    `;
+                    card.querySelector('h3').textContent = c.name;
+                    card.querySelector('p').textContent = `${courseUnits.length} Units \u00b7 ${courseEntriesCount} Formulas`;
+                    card.addEventListener('click', () => {
+                        this.state.currentUnitId = c.id;
+                        this.renderSidebar();
+                        this.renderMainContent();
+                    });
+                    this.els.mainContent.append(card);
+                });
+                
+                // Render Unassigned Unit Cards
+                unassignedUnits.forEach(u => {
+                    const card = document.createElement('div');
+                    card.className = 'course-card';
+                    card.dataset.id = u.id;
+                    
+                    card.innerHTML = `
+                        <div class="course-card-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        </div>
+                        <div class="desmos-card-info">
+                            <h3></h3>
+                        <p style="font-size: 0.8em; color: #666; margin: 0;"></p>
+                        </div>
+                    `;
+                    card.querySelector('h3').textContent = u.name;
+                    card.querySelector('p').textContent = `Unit \u00b7 ${u.entries.length} Formulas`;
+                    card.addEventListener('click', () => {
+                        this.state.currentUnitId = u.id;
+                        this.renderSidebar();
+                        this.renderMainContent();
+                    });
+                    this.els.mainContent.append(card);
+                });
+                
+                return;
+            }
+            
+        } else if (this.state.currentUnitId.startsWith('c-')) {
+            // Course Tab View
+            this.els.addEntryBtn.style.display = 'none';
+            entries = this.library.getEntriesForCourse(this.state.currentUnitId);
+            
         } else {
+            // Regular Unit View
             const unit = this.library.getUnit(this.state.currentUnitId);
             if (!unit) {
                 this.state.currentUnitId = 'general';
@@ -574,8 +953,51 @@ class App {
         this.state.visibleEntries = entries; // Save for navigation
 
         this.els.mainContent.innerHTML = '';
+        
+        if (!filterText && this.state.currentUnitId.startsWith('c-')) {
+            const courseUnits = this.library.getUnits().filter(u => u.courseId === this.state.currentUnitId);
+            if (courseUnits.length > 0) {
+                const header = document.createElement('h3');
+                header.style.cssText = "grid-column: 1 / -1; width: 100%; margin-bottom: 0.5rem; margin-top: 0; color: #666; font-weight: 600; font-size: 1rem; text-transform: uppercase;";
+                header.innerText = "Units";
+                this.els.mainContent.append(header);
+                
+                courseUnits.forEach(u => {
+                    const card = document.createElement('div');
+                    card.className = 'course-card';
+                    card.dataset.id = u.id;
+                    card.innerHTML = `
+                        <div class="course-card-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        </div>
+                        <div class="desmos-card-info">
+                            <h3></h3>
+                            <p style="font-size: 0.8em; color: #666; margin: 0;"></p>
+                        </div>
+                    `;
+                    card.querySelector('h3').textContent = u.name;
+                    card.querySelector('p').textContent = `Unit \u00b7 ${u.entries.length} Formulas`;
+                    card.addEventListener('click', () => {
+                        this.state.currentUnitId = u.id;
+                        this.renderSidebar();
+                        this.renderMainContent();
+                    });
+                    this.els.mainContent.append(card);
+                });
+
+                if (entries.length > 0) {
+                    const formHeader = document.createElement('h3');
+                    formHeader.style.cssText = "grid-column: 1 / -1; width: 100%; margin-bottom: 0.5rem; margin-top: 1rem; color: #666; font-weight: 600; font-size: 1rem; text-transform: uppercase;";
+                    formHeader.innerText = "Formulas";
+                    this.els.mainContent.append(formHeader);
+                }
+            }
+        }
+
         if (entries.length === 0) {
-            this.els.mainContent.innerHTML = '<div class="empty-state">No formulas found.</div>';
+            if (!this.els.mainContent.innerHTML) {
+                this.els.mainContent.innerHTML = '<div class="empty-state">No formulas found.</div>';
+            }
             return;
         }
 
@@ -869,7 +1291,12 @@ class App {
 
             card.querySelector('.pdf-rename-btn').onclick = async (e) => {
                 e.stopPropagation();
-                const newName = prompt('Rename PDF:', pdf.name);
+                const newName = await this.showCustomModal({
+                    title: "Rename PDF",
+                    message: "Enter new name:",
+                    initialValue: pdf.name,
+                    type: "text"
+                });
                 if (newName && newName.trim() && newName.trim() !== pdf.name) {
                     if (isLinked) {
                         const links = this.getPdfLinks();
@@ -888,7 +1315,12 @@ class App {
 
             card.querySelector('.pdf-delete-btn').onclick = async (e) => {
                 e.stopPropagation();
-                if (confirm(`Delete "${pdf.name}"?`)) {
+                const isConfirmed = await this.showCustomModal({
+                    title: "Confirm Deletion",
+                    message: `Delete "${pdf.name}"?`,
+                    type: "confirm"
+                });
+                if (isConfirmed) {
                     if (isLinked) {
                         const links = this.getPdfLinks().filter(l => l.id !== pdf.id);
                         this.savePdfLinks(links);
@@ -974,11 +1406,20 @@ class App {
         localStorage.setItem('pdf_links', JSON.stringify(links));
     }
 
-    addPdfLink() {
-        const url = prompt('Paste a PDF link:');
+    async addPdfLink() {
+        const url = await this.showCustomModal({
+            title: "Add PDF Link",
+            message: "Paste a PDF link:",
+            type: "text"
+        });
         if (!url || !url.trim()) return;
 
-        const title = prompt('Enter a title for this PDF:', 'Untitled PDF');
+        const title = await this.showCustomModal({
+            title: "Add PDF Link",
+            message: "Enter a title for this PDF:",
+            initialValue: "Untitled PDF",
+            type: "text"
+        });
         if (!title || !title.trim()) return;
 
         const links = this.getPdfLinks();
@@ -1029,8 +1470,12 @@ class App {
         return match ? match[1] : null;
     }
 
-    addDesmosGraph() {
-        const url = prompt('Paste a Desmos graph URL:');
+    async addDesmosGraph() {
+        const url = await this.showCustomModal({
+            title: "Add Desmos Graph",
+            message: "Paste a Desmos graph URL:",
+            type: "text"
+        });
         if (!url || !url.trim()) return;
 
         const graphId = this.extractDesmosGraphId(url.trim());
@@ -1039,7 +1484,12 @@ class App {
             return;
         }
 
-        const title = prompt('Enter a title for this graph:', 'Untitled Graph');
+        const title = await this.showCustomModal({
+            title: "Add Desmos Graph",
+            message: "Enter a title for this graph:",
+            initialValue: "Untitled Graph",
+            type: "text"
+        });
         if (!title || !title.trim()) return;
 
         const graphs = this.getDesmosGraphs();
@@ -1105,9 +1555,14 @@ class App {
                 this.openDesmosViewer(graph);
             };
 
-            card.querySelector('.desmos-rename-btn').onclick = (e) => {
+            card.querySelector('.desmos-rename-btn').onclick = async (e) => {
                 e.stopPropagation();
-                const newName = prompt('Rename graph:', graph.title);
+                const newName = await this.showCustomModal({
+                    title: "Rename Graph",
+                    message: "Enter new name:",
+                    initialValue: graph.title,
+                    type: "text"
+                });
                 if (newName && newName.trim() && newName.trim() !== graph.title) {
                     const graphs = this.getDesmosGraphs();
                     const g = graphs.find(x => x.id === graph.id);
@@ -1119,9 +1574,14 @@ class App {
                 }
             };
 
-            card.querySelector('.desmos-delete-btn').onclick = (e) => {
+            card.querySelector('.desmos-delete-btn').onclick = async (e) => {
                 e.stopPropagation();
-                if (confirm(`Delete "${graph.title}"?`)) {
+                const isConfirmed = await this.showCustomModal({
+                    title: "Confirm Deletion",
+                    message: `Delete "${graph.title}"?`,
+                    type: "confirm"
+                });
+                if (isConfirmed) {
                     const graphs = this.getDesmosGraphs().filter(x => x.id !== graph.id);
                     this.saveDesmosGraphs(graphs);
                     this.renderMainContent();
