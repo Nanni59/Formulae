@@ -42,6 +42,26 @@ class App {
             modalSave: document.getElementById('btn-save-entry'),
             modalCancel: document.getElementById('btn-cancel-entry'),
 
+            // AI Generate Modal
+            aiBtn: document.getElementById('btn-ai-generate'),
+            aiModal: document.getElementById('ai-modal'),
+            btnCloseAi: document.getElementById('btn-close-ai'),
+            aiKeyInput: document.getElementById('ai-key-input'),
+            aiKeyInputRow: document.getElementById('ai-key-input-row'),
+            aiKeySavedRow: document.getElementById('ai-key-saved-row'),
+            btnSaveKey: document.getElementById('btn-save-key'),
+            btnClearKey: document.getElementById('btn-clear-key'),
+            aiModelSelect: document.getElementById('ai-model-select'),
+            aiYoutubeInput: document.getElementById('ai-youtube-input'),
+            aiNotesInput: document.getElementById('ai-notes-input'),
+            aiDropzone: document.getElementById('ai-dropzone'),
+            aiFileInput: document.getElementById('ai-file-input'),
+            aiFileList: document.getElementById('ai-file-list'),
+            aiError: document.getElementById('ai-error'),
+            btnAiRun: document.getElementById('btn-ai-run'),
+            aiRunSpinner: document.getElementById('ai-run-spinner'),
+            aiRunLabel: document.getElementById('ai-run-label'),
+
             // View Modal
             viewModal: document.getElementById('view-modal'),
             viewModalTitle: document.getElementById('view-modal-title'),
@@ -567,6 +587,9 @@ class App {
 
         // Global keyboard navigation
         window.addEventListener('keydown', (e) => {
+            // Don't steal arrow keys while the AI modal is open or focus is in a field
+            if (this.els.aiModal && this.els.aiModal.classList.contains('visible')) return;
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
             if (this.els.viewModal.classList.contains('visible')) {
                 if (e.key === 'ArrowRight') {
                     this.navigateEntry(1);
@@ -576,6 +599,7 @@ class App {
             }
         });
 
+        this.attachAiListeners();
         this.attachDragAndDrop();
     }
 
@@ -1144,6 +1168,442 @@ class App {
     }
 
     closeModal() { this.els.modal.classList.remove('visible'); }
+
+    // ===== AI Generation (Bring-Your-Own-Key) =====
+
+    _getGeminiKey() {
+        return localStorage.getItem('formulae_gemini_key') || '';
+    }
+
+    _setGeminiKey(key) {
+        localStorage.setItem('formulae_gemini_key', key);
+    }
+
+    _clearGeminiKey() {
+        localStorage.removeItem('formulae_gemini_key');
+    }
+
+    _getGeminiModel() {
+        return localStorage.getItem('formulae_gemini_model') || 'gemini-2.5-flash';
+    }
+
+    _setGeminiModel(model) {
+        localStorage.setItem('formulae_gemini_model', model);
+    }
+
+    _refreshKeyUI() {
+        const hasKey = !!this._getGeminiKey();
+        this.els.aiKeyInputRow.style.display = hasKey ? 'none' : 'flex';
+        this.els.aiKeySavedRow.style.display = hasKey ? 'flex' : 'none';
+    }
+
+    _renderAiFileList() {
+        const files = this._aiFiles || [];
+        this.els.aiFileList.innerHTML = files.map((f, i) => `
+            <div class="ai-file-chip">
+                <span class="ai-file-name" title="${this._escapeHtml(f.name)}">${this._escapeHtml(f.name)}</span>
+                <button class="ai-file-remove" data-index="${i}" title="Remove">&times;</button>
+            </div>
+        `).join('');
+    }
+
+    _isTextFile(f) {
+        return f.type.startsWith('text/') || /\.(md|markdown|txt)$/i.test(f.name);
+    }
+
+    _isPdfFile(f) {
+        return f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+    }
+
+    _isWordFile(f) {
+        return /\.(docx?|rtf)$/i.test(f.name) ||
+            f.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+            f.type === 'application/msword';
+    }
+
+    _isValidYoutubeUrl(url) {
+        return /^(https?:\/\/)?(www\.|m\.)?(youtube\.com\/(watch\?|playlist\?|shorts\/|live\/)|youtu\.be\/)\S+$/i.test(url.trim());
+    }
+
+    _addAiFiles(fileList) {
+        if (!this._aiFiles) this._aiFiles = [];
+        for (const f of fileList) {
+            if (this._isWordFile(f)) {
+                this._showAiError(`Word files like "${f.name}" aren't supported. Export it to PDF, or paste the text into Notes.`);
+                continue;
+            }
+            const isPdf = this._isPdfFile(f);
+            const isText = this._isTextFile(f);
+            if (!isPdf && !isText) {
+                this._showAiError(`"${f.name}" is not a supported type. Use PDF, Markdown, or text files.`);
+                continue;
+            }
+            // ~20MB inline cap per file (Gemini inline-data limit)
+            if (f.size > 20 * 1024 * 1024) {
+                this._showAiError(`"${f.name}" is larger than 20 MB and can't be sent inline.`);
+                continue;
+            }
+            this._aiFiles.push(f);
+        }
+        this._renderAiFileList();
+    }
+
+    _showAiError(msg) {
+        this.els.aiError.textContent = msg;
+        this.els.aiError.style.display = 'block';
+    }
+
+    _clearAiError() {
+        this.els.aiError.textContent = '';
+        this.els.aiError.style.display = 'none';
+    }
+
+    _setAiLoading(loading) {
+        this.els.btnAiRun.disabled = loading;
+        this.els.aiRunSpinner.style.display = loading ? 'inline-block' : 'none';
+        this.els.aiRunLabel.textContent = loading ? 'Generating…' : 'Generate Table';
+    }
+
+    openAiModal() {
+        this._aiFiles = [];
+        this.els.aiYoutubeInput.value = '';
+        this.els.aiNotesInput.value = '';
+        this.els.aiFileInput.value = '';
+        this._renderAiFileList();
+        this._clearAiError();
+        this._setAiLoading(false);
+        this._refreshKeyUI();
+        this.els.aiModelSelect.value = this._getGeminiModel();
+        this.els.aiModal.classList.add('visible');
+    }
+
+    attachAiListeners() {
+        if (!this.els.aiModal) return;
+
+        this.els.aiBtn.addEventListener('click', () => this.openAiModal());
+        this.els.btnCloseAi.addEventListener('click', () => this.els.aiModal.classList.remove('visible'));
+        this.els.aiModal.addEventListener('click', (e) => {
+            if (e.target === this.els.aiModal) this.els.aiModal.classList.remove('visible');
+        });
+
+        // Key management
+        this.els.btnSaveKey.addEventListener('click', () => {
+            const key = this.els.aiKeyInput.value.trim();
+            if (!key) { this._showAiError('Please paste an API key first.'); return; }
+            this._setGeminiKey(key);
+            this.els.aiKeyInput.value = '';
+            this._clearAiError();
+            this._refreshKeyUI();
+        });
+        this.els.btnClearKey.addEventListener('click', () => {
+            this._clearGeminiKey();
+            this._refreshKeyUI();
+        });
+
+        // Model selection
+        this.els.aiModelSelect.addEventListener('change', () => {
+            this._setGeminiModel(this.els.aiModelSelect.value);
+        });
+
+        // File pickers
+        this.els.aiDropzone.addEventListener('click', () => this.els.aiFileInput.click());
+        this.els.aiFileInput.addEventListener('change', (e) => this._addAiFiles(e.target.files));
+        this.els.aiDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            this.els.aiDropzone.classList.add('drag-over');
+        });
+        this.els.aiDropzone.addEventListener('dragleave', () => {
+            this.els.aiDropzone.classList.remove('drag-over');
+        });
+        this.els.aiDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            this.els.aiDropzone.classList.remove('drag-over');
+            if (e.dataTransfer.files) this._addAiFiles(e.dataTransfer.files);
+        });
+        this.els.aiFileList.addEventListener('click', (e) => {
+            const btn = e.target.closest('.ai-file-remove');
+            if (!btn) return;
+            this._aiFiles.splice(parseInt(btn.dataset.index, 10), 1);
+            this._renderAiFileList();
+        });
+
+        // Generate
+        this.els.btnAiRun.addEventListener('click', () => this.runAiGeneration());
+    }
+
+    _fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]); // strip data-URL prefix
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    _fileToText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsText(file);
+        });
+    }
+
+    // Ask the Flask backend for a YouTube video's caption text.
+    // Returns { ok, transcript } on success, or { ok:false, backendMissing|error }.
+    // backendMissing=true means there's no transcription server (e.g. static build),
+    // so the caller can fall back to native Gemini video ingestion.
+    async _fetchTranscript(url) {
+        let res;
+        try {
+            res = await fetch('/api/transcript?url=' + encodeURIComponent(url));
+        } catch (e) {
+            return { ok: false, backendMissing: true };
+        }
+        const ctype = res.headers.get('content-type') || '';
+        if (!ctype.includes('application/json')) {
+            // Not our JSON endpoint (served statically / route absent)
+            return { ok: false, backendMissing: true };
+        }
+        let data;
+        try { data = await res.json(); } catch (e) { return { ok: false, backendMissing: true }; }
+        if (res.ok && data.transcript) {
+            return { ok: true, transcript: data.transcript };
+        }
+        // Library not installed on the server → treat as "no backend" and fall back
+        if (res.status === 500 && /not installed/i.test(data.error || '')) {
+            return { ok: false, backendMissing: true };
+        }
+        return { ok: false, backendMissing: false, error: data.error || ('HTTP ' + res.status) };
+    }
+
+    async runAiGeneration() {
+        this._clearAiError();
+
+        const key = this._getGeminiKey();
+        if (!key) { this._showAiError('Please save your Gemini API key first.'); return; }
+
+        // Parse + validate YouTube links (one per line)
+        const youtubeLinks = this.els.aiYoutubeInput.value
+            .split('\n')
+            .map(l => l.trim())
+            .filter(l => l.length > 0);
+        const badLink = youtubeLinks.find(l => !this._isValidYoutubeUrl(l));
+        if (badLink) {
+            this._showAiError(`"${badLink}" doesn't look like a YouTube link. Use one valid URL per line.`);
+            return;
+        }
+
+        const notes = this.els.aiNotesInput.value.trim();
+        const files = this._aiFiles || [];
+
+        if (youtubeLinks.length === 0 && !notes && files.length === 0) {
+            this._showAiError('Add a YouTube link, some notes, or attach at least one file.');
+            return;
+        }
+
+        this._setAiLoading(true);
+        try {
+            const result = await this.generateTableFromAI({ youtubeLinks, notes, files, key });
+            const latex = result.latex;
+
+            if (!latex || !latex.trim()) {
+                throw new Error('The AI did not return a table. Try adding more detail or a different source.');
+            }
+
+            // If the editor already has content, confirm before overwriting it
+            if (this.els.modalRaw.value.trim()) {
+                const ok = await this.showCustomModal({
+                    title: 'Replace current LaTeX?',
+                    message: 'The editor already has content. Replace it with the AI-generated table?',
+                    type: 'confirm'
+                });
+                if (!ok) { this._setAiLoading(false); return; }
+            }
+
+            // Populate the Edit Entry editor and refresh its live preview
+            this.els.modalRaw.value = latex;
+            this.renderer.render(latex, this.els.modalPreview);
+
+            // Suggest a title only if the user hasn't set one
+            if (!this.els.modalTitle.value.trim() && result.title) {
+                this.els.modalTitle.value = result.title;
+            }
+
+            this.els.aiModal.classList.remove('visible');
+        } catch (err) {
+            this._showAiError(err.message || 'Something went wrong while generating.');
+        } finally {
+            this._setAiLoading(false);
+        }
+    }
+
+    async generateTableFromAI({ youtubeLinks, notes, files, key }) {
+        const MODEL = this._getGeminiModel();
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(key)}`;
+
+        // Split text-like files (folded into the prompt) from PDFs (sent inline as base64)
+        const textFiles = [];
+        const binaryFiles = [];
+        for (const f of files) {
+            if (this._isTextFile(f)) textFiles.push(f);
+            else binaryFiles.push(f);
+        }
+
+        let dataSection = '';
+        if (notes) dataSection += 'Notes / context:\n' + notes + '\n\n';
+        for (const tf of textFiles) {
+            const content = await this._fileToText(tf);
+            dataSection += `--- File: ${tf.name} ---\n${content}\n\n`;
+        }
+
+        // For each YouTube link, pull the real caption text from our backend
+        // transcription service and fold it into the prompt — far more reliable than
+        // having Gemini watch the video. If the service is unavailable (e.g. the static
+        // build with no server), fall back to letting Gemini ingest the URL natively.
+        const videoFileParts = [];
+        for (const link of youtubeLinks) {
+            const r = await this._fetchTranscript(link);
+            if (r.ok) {
+                dataSection += `--- YouTube transcript (${link}) ---\n${r.transcript}\n\n`;
+            } else if (r.backendMissing) {
+                videoFileParts.push({ fileData: { fileUri: link } });
+            } else {
+                throw new Error(`Couldn't get a transcript for ${link}: ${r.error}`);
+            }
+        }
+        const hasVideos = youtubeLinks.length > 0;
+
+        // NOTE: We ask for PLAIN TEXT (not JSON). LaTeX is backslash-heavy, and
+        // wrapping it in a JSON string makes models mis-escape "\\" row breaks
+        // (producing "Misplaced \hline" render errors). Plain text avoids that layer.
+        // Backslashes below are doubled so the resulting JS string holds single-backslash LaTeX.
+        const promptText = `You are an expert academic note-formatter. From the provided source material (attached YouTube video(s), notes, and/or attached files), extract the MATHEMATICAL / ACADEMIC CONTENT ONLY and condense it into a single LaTeX summary table in the EXACT style this app uses.
+
+CONTENT RULES (very important):
+- When a YouTube video is attached, base the table on what is actually taught in it: the spoken explanation (transcript/captions) and any formulas, definitions, or diagrams shown on screen.
+- Focus exclusively on the subject matter: definitions, formulas, rules, theorems, concepts, and their context.
+- IGNORE and NEVER mention the YouTube channel, the creator/uploader/presenter name, the video title, branding, sponsors, "like and subscribe", intros/outros, or any meta-commentary about the video itself. None of that belongs in the table.
+- The TITLE must name the academic TOPIC (e.g. "Jensen's Inequality", "Dot Product", "Probability Rules") — it must NEVER be a person's name, a channel name, or a video title.
+
+OUTPUT FORMAT — return PLAIN TEXT only (no JSON, no Markdown code fences), exactly:
+TITLE: <3 to 6 word topic name>
+
+<the LaTeX table>
+
+LATEX STYLE RULES (follow precisely):
+- One table wrapped in display-math delimiters: $$ ... $$.
+- Three-column bordered array: \\begin{array}{|l|l|l|} ... \\end{array}.
+- Begin with \\hline, then a bold header row using \\mathbf{...} for each of the three column titles.
+- Typical columns are Topic/Concept, Formula/Rule, and Context/Notes; adapt the labels to the subject.
+- Each data row: first and third cells are short prose wrapped in \\text{...}; the middle cell is the math/formula written as raw LaTeX (NOT inside \\text{}).
+- CRITICAL: end EVERY row (header and data) with a DOUBLE backslash \\\\ immediately followed by \\hline. Never a single backslash before \\hline.
+- Keep cells concise. Escape literal percent signs as \\%. Use only the array environment and standard math — no \\usepackage, no tabular, no color, no images.
+- Produce roughly 6 to 20 rows depending on how much material is provided.
+
+EXAMPLE of the EXACT desired output (match this structure and style closely):
+TITLE: Probability Rules
+
+$$
+\\begin{array}{|l|l|l|}
+\\hline
+\\mathbf{Topic} & \\mathbf{Formula / Explanation} & \\mathbf{Context / Notes} \\\\ \\hline
+\\text{Theoretical Probability} & P(A) = \\frac{n(A)}{n(S)} & \\text{Ratio of favorable outcomes to total outcomes} \\\\ \\hline
+\\text{Complementary Events} & P(A') = 1 - P(A) & \\text{Probability of event } A \\text{ not occurring} \\\\ \\hline
+\\text{Mutually Exclusive} & P(A \\cup B) = P(A) + P(B) & \\text{Events cannot happen at the same time} \\\\ \\hline
+\\text{Conditional Prob.} & P(B|A) = \\frac{P(A \\cap B)}{P(A)} & \\text{Probability of } B \\text{ given that } A \\text{ occurred} \\\\ \\hline
+\\end{array}
+$$
+
+${hasVideos ? 'The YouTube video transcript(s) below are the PRIMARY source — build the table from what is actually taught in them.\n\n' : ''}${dataSection.trim() ? 'Source material:\n' + dataSection : (hasVideos ? '' : 'No text was provided; build the table from the attached file(s).')}`;
+
+        const parts = [{ text: promptText }];
+        // Only present when the transcription backend was unavailable (fallback).
+        for (const part of videoFileParts) {
+            parts.push(part);
+        }
+        for (const f of binaryFiles) {
+            const data = await this._fileToBase64(f);
+            parts.push({ inlineData: { mimeType: f.type || 'application/pdf', data } });
+        }
+
+        const body = {
+            contents: [{ parts }]
+        };
+
+        let res;
+        try {
+            res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+        } catch (e) {
+            throw new Error('Network error contacting Google. Check your internet connection.');
+        }
+
+        if (!res.ok) {
+            // Surface Google's actual error message — it's far more specific than the HTTP code
+            let detail = '';
+            try {
+                const errJson = await res.json();
+                detail = errJson?.error?.message || '';
+            } catch (e) { /* body wasn't JSON */ }
+
+            if (res.status === 403) {
+                throw new Error('API key rejected or lacking permission (HTTP 403). ' + (detail || 'Check the key and that the "Generative Language API" is enabled for its project.'));
+            }
+            if (res.status === 400) {
+                // 400 is usually a malformed request or unsupported content, not the key
+                throw new Error('Request rejected (HTTP 400). ' + (detail || 'The input may be unsupported. If you just pasted a key, double-check it.'));
+            }
+            if (res.status === 404) {
+                throw new Error('Model not found (HTTP 404). ' + (detail || 'The model name may be unavailable for this key.'));
+            }
+            if (res.status === 429) {
+                throw new Error('Quota/rate limit (HTTP 429). ' + (detail || 'Free tier has per-minute and per-day limits — wait ~60s.'));
+            }
+            throw new Error(`Gemini request failed (HTTP ${res.status}). ${detail}`);
+        }
+
+        const json = await res.json();
+        const raw = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!raw) throw new Error('The AI returned an empty response. Try again.');
+
+        // Plain-text response: strip any stray code fences, pull out the TITLE line,
+        // then isolate the $$...$$ (or \[...\]) table block.
+        let textOut = raw.replace(/```(?:latex|text|tex)?/gi, '').trim();
+
+        let title = '';
+        const titleMatch = textOut.match(/^\s*TITLE:\s*(.+)$/im);
+        if (titleMatch) {
+            title = titleMatch[1].trim();
+            textOut = textOut.replace(titleMatch[0], '').trim();
+        }
+
+        let latex = '';
+        const dollarBlock = textOut.match(/\$\$[\s\S]*?\$\$/);
+        const bracketBlock = textOut.match(/\\\[[\s\S]*?\\\]/);
+        if (dollarBlock) latex = dollarBlock[0];
+        else if (bracketBlock) latex = bracketBlock[0];
+        else latex = textOut.trim();
+
+        latex = this._repairTableLatex(latex.trim());
+
+        // Ensure the LaTeX carries display-math delimiters so it renders as a block
+        if (latex && !/^\s*(\$\$|\\\[|\\\(|\$)/.test(latex)) {
+            latex = `$$\n${latex}\n$$`;
+        }
+
+        return { title, latex };
+    }
+
+    // Some models emit a single backslash before \hline instead of the required
+    // row terminator "\\". That triggers MathJax "Misplaced \hline". Repair it.
+    _repairTableLatex(latex) {
+        if (!latex) return latex;
+        return latex.replace(/(?<!\\)\\(\s*)\\hline/g, '\\\\$1\\hline');
+    }
 
     showMoveMenu(btn, entry) {
         // Remove existing menu if any

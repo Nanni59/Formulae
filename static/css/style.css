@@ -1066,3 +1066,173 @@ mjx-container[jax="SVG"][display="true"] {
 .link-modal-buttons .btn-save:hover {
     opacity: 0.9;
 }
+
+/* --- AI Generate Modal --- */
+/* Sit just above the Edit Entry modal (z-index 100), but below the
+   custom prompt/confirm overlay (z-index 2000). */
+#ai-modal {
+    z-index: 150;
+}
+
+/* Size the modal to its content instead of the default fixed 80vh */
+#ai-modal .modal-content {
+    height: auto;
+}
+
+#ai-modal .modal-body {
+    display: block;
+    /* override the flex-row modal body */
+    overflow-y: auto;
+    flex: 0 1 auto;
+    padding: 1.5rem 1.75rem;
+}
+
+#ai-modal .modal-header {
+    padding: 1.25rem 1.75rem;
+}
+
+#ai-modal .modal-footer {
+    padding: 1rem 1.75rem;
+}
+
+.ai-section {
+    margin-bottom: 4px;
+    width: 100%;
+}
+
+.ai-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.ai-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    background: #fff;
+    resize: vertical;
+}
+
+.ai-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.ai-hint {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin: 8px 0 0;
+    line-height: 1.5;
+}
+
+.ai-hint a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.ai-hint a:hover {
+    text-decoration: underline;
+}
+
+.ai-divider {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 18px 0;
+}
+
+.ai-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 24px;
+    border: 2px dashed #cbd5e1;
+    border-radius: 10px;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.ai-dropzone:hover {
+    border-color: var(--primary-color);
+    background: rgba(99, 102, 241, 0.03);
+}
+
+.ai-dropzone.drag-over {
+    border-color: var(--primary-color);
+    background: rgba(99, 102, 241, 0.08);
+    color: var(--primary-color);
+}
+
+.ai-file-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.ai-file-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 220px;
+    padding: 5px 8px 5px 12px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    font-size: 0.8rem;
+}
+
+.ai-file-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ai-file-remove {
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px;
+}
+
+.ai-file-remove:hover {
+    color: var(--accent-danger);
+}
+
+/* Trigger button inside the Edit Entry header */
+.btn-ai-trigger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+/* Submit button spinner */
+.ai-spinner {
+    width: 15px;
+    height: 15px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: aiSpin 0.7s linear infinite;
+}
+
+@keyframes aiSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
