@@ -8,6 +8,15 @@ mimetypes.add_type('application/wasm', '.wasm')
 
 app = Flask(__name__)
 
+
+@app.after_request
+def _allow_cors(resp):
+    # Allow the Course Planner (served from another localhost port) to call
+    # /api/transcript from the browser. Simple GET, so a permissive header is enough.
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    return resp
+
+
 # Matches the 11-char video id in the common YouTube URL shapes.
 _YT_ID_RE = re.compile(r'(?:v=|/shorts/|/live/|/embed/|youtu\.be/)([A-Za-z0-9_-]{11})')
 

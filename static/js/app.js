@@ -128,8 +128,19 @@ class App {
             titleEl.textContent = options.title || 'Prompt';
             msgEl.textContent = options.message || '';
             
+            // The native select is hidden by the themed-dropdown overlay (_ftDD);
+            // toggle the overlay's visibility, not the select's.
+            const setSelVisible = (visible) => {
+                if (inputSel._ftDD) {
+                    inputSel._ftDD.style.display = visible ? 'block' : 'none';
+                    if (visible) inputSel._ftDD.classList.remove('open');
+                } else {
+                    inputSel.style.display = visible ? 'block' : 'none';
+                }
+            };
+
             inputTxt.style.display = 'none';
-            inputSel.style.display = 'none';
+            setSelVisible(false);
 
             let firstFocusable = btnCancel;
 
@@ -138,7 +149,6 @@ class App {
                 inputTxt.value = options.initialValue || '';
                 firstFocusable = inputTxt;
             } else if (options.type === 'select') {
-                inputSel.style.display = 'block';
                 inputSel.innerHTML = '';
                 (options.selectOptions || []).forEach(opt => {
                     const o = document.createElement('option');
@@ -146,12 +156,15 @@ class App {
                     o.textContent = opt.label;
                     inputSel.appendChild(o);
                 });
-                firstFocusable = inputSel;
+                setSelVisible(true);
+                firstFocusable = inputSel._ftDD ? inputSel._ftDD.querySelector('.ft-dd-head') : inputSel;
             }
 
             const getFocusableElements = () => {
                 return Array.from(dialog.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
-                    .filter(el => el.style.display !== 'none' && !el.disabled);
+                    .filter(el => el.style.display !== 'none' && !el.disabled
+                        && !el.classList.contains('ft-dd-opt')
+                        && !(el.closest('.ft-dd') && el.closest('.ft-dd').style.display === 'none'));
             };
 
             const handleTrap = (e) => {
@@ -397,21 +410,17 @@ class App {
         if (this.els.viewModalEditBtn) {
             this.els.viewModalEditBtn.addEventListener('click', () => {
                 this.els.viewModal.classList.remove('visible');
-                let entry = null;
-                if (this.state.currentUnitId === 'general') {
-                    const all = this.library.getAllEntries();
-                    entry = all.find(e => e.id === this.state.viewingEntryId);
-                    const units = this.library.getUnits();
-                    const ownerUnit = units.find(u => u.entries.some(e => e.id === this.state.viewingEntryId));
-                    if (ownerUnit) {
-                        this.state.currentUnitId = ownerUnit.id;
-                        this.renderSidebar();
-                    }
-                } else {
-                    const unit = this.library.getUnit(this.state.currentUnitId);
-                    entry = unit.entries.find(e => e.id === this.state.viewingEntryId);
+                // Resolve the entry and its owning unit regardless of the current view.
+                // 'general' and course ('c-') views aren't real units, so getUnit()
+                // returns undefined there — always look the entry up by its owner unit.
+                const units = this.library.getUnits();
+                const ownerUnit = units.find(u => u.entries.some(e => e.id === this.state.viewingEntryId));
+                if (!ownerUnit) return;
+                const entry = ownerUnit.entries.find(e => e.id === this.state.viewingEntryId);
+                if (this.state.currentUnitId !== ownerUnit.id) {
+                    this.state.currentUnitId = ownerUnit.id;
+                    this.renderSidebar();
                 }
-
                 if (entry) this.openModal(entry);
             });
         }
@@ -2069,6 +2078,93 @@ ${hasVideos ? 'The YouTube video transcript(s) below are the PRIMARY source — 
     }
 }
 
+/* ===== Custom themed dropdown =====
+   Keeps the native <select> as the hidden source of truth and renders a
+   styled .ft-dd overlay beside it. Existing code that reads select.value
+   keeps working unchanged. */
+function closeAllDropdowns(except) {
+    document.querySelectorAll('.ft-dd.open').forEach(d => {
+        if (d !== except) d.classList.remove('open');
+    });
+}
+
+function initThemedSelects() {
+    document.addEventListener('click', () => closeAllDropdowns(null));
+    document.querySelectorAll('#ai-model-select, #customModalInputSelect').forEach(enhanceSelect);
+}
+
+function enhanceSelect(sel) {
+    if (!sel || sel.dataset.ftThemed) return;
+    sel.dataset.ftThemed = '1';
+    sel.style.display = 'none';   // native select stays as source of truth, hidden
+
+    const chev = '<span class="ft-dd-chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></span>';
+
+    const dd = document.createElement('div');
+    dd.className = 'ft-dd';
+    const head = document.createElement('button');
+    head.type = 'button';
+    head.className = 'ft-dd-head';
+    head.innerHTML = '<span class="ft-dd-val"></span>' + chev;
+    const list = document.createElement('div');
+    list.className = 'ft-dd-list';
+    dd.appendChild(head);
+    dd.appendChild(list);
+    sel.parentNode.insertBefore(dd, sel.nextSibling);
+    sel._ftDD = dd;   // back-reference for toggling visibility in modals
+
+    const valEl = head.querySelector('.ft-dd-val');
+    const sync = () => {
+        const opt = sel.options[sel.selectedIndex];
+        valEl.textContent = opt ? opt.textContent : '';
+        list.querySelectorAll('.ft-dd-opt').forEach(b =>
+            b.classList.toggle('on', b.dataset.val === sel.value && !b.classList.contains('disabled')));
+    };
+    const rebuild = () => {
+        list.innerHTML = '';
+        Array.from(sel.options).forEach(opt => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'ft-dd-opt' + (opt.disabled ? ' disabled' : '');
+            b.dataset.val = opt.value;
+            b.textContent = opt.textContent;
+            if (!opt.disabled) {
+                b.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    sel.value = opt.value;
+                    dd.classList.remove('open');
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+            }
+            list.appendChild(b);
+        });
+        sync();
+    };
+    head.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = dd.classList.contains('open');
+        closeAllDropdowns(dd);
+        dd.classList.toggle('open', !open);
+    });
+
+    // Mirror programmatic changes: option-list edits + direct value/selectedIndex set.
+    new MutationObserver(rebuild).observe(sel, { childList: true });
+    sel.addEventListener('change', sync);
+    const proto = HTMLSelectElement.prototype;
+    ['value', 'selectedIndex'].forEach(prop => {
+        const desc = Object.getOwnPropertyDescriptor(proto, prop);
+        if (!desc) return;
+        Object.defineProperty(sel, prop, {
+            configurable: true,
+            get() { return desc.get.call(sel); },
+            set(v) { desc.set.call(sel, v); sync(); }
+        });
+    });
+
+    rebuild();
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     window.app = new App();
+    initThemedSelects();
 });

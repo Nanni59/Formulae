@@ -1032,6 +1032,114 @@ mjx-container[jax="SVG"][display="true"] {
     box-shadow: 0 0 0 1px var(--primary-color);
 }
 
+/* ===== Custom themed dropdown =====
+   A hidden native <select> stays the source of truth; this .ft-dd overlay
+   renders the head + popup list. Accent = --primary-color (#6366f1). */
+.ft-dd {
+    position: relative;
+    width: 100%;
+}
+
+.ft-dd-head {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: var(--text-primary, #1f2937);
+    text-align: left;
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ft-dd-head:hover {
+    border-color: #b8c0cc;
+}
+
+.ft-dd-val {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ft-dd-chev {
+    display: flex;
+    flex: none;
+    color: #6b7280;
+    transition: transform 0.2s ease;
+}
+
+.ft-dd.open .ft-dd-head {
+    border-color: var(--primary-color, #6366f1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16);
+}
+
+.ft-dd.open .ft-dd-chev {
+    transform: rotate(180deg);
+}
+
+.ft-dd-list {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: #fff;
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.10), 0 14px 32px rgba(15, 23, 42, 0.18);
+    max-height: 244px;
+    overflow-y: auto;
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.ft-dd.open .ft-dd-list {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+}
+
+.ft-dd-opt {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    font-size: 0.875rem;
+    color: var(--text-primary, #1f2937);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+.ft-dd-opt:hover {
+    background: #f1f5f9;
+}
+
+.ft-dd-opt.on {
+    background: var(--primary-color, #6366f1);
+    color: #fff;
+    font-weight: 600;
+}
+
+.ft-dd-opt.disabled {
+    color: #aab0c0;
+    cursor: default;
+    pointer-events: none;
+}
+
 .link-modal-buttons {
     display: flex;
     gap: 10px;
