@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formulae</title>
+<script>
+  /* Apply the saved appearance before first paint (formulae_theme: system | light | dark) */
+  try { const t = localStorage.getItem('formulae_theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (_) {}
+</script>
+<link rel="icon" type="image/svg+xml" href="static/img/logo/formulae-flat-light.svg" id="favicon">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']], processEscapes: true },
+    startup: { typeset: false }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+<link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+<!-- Icon sprite (authored, one stroke weight) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-plus-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M12 8v8M8 12h8"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+    <symbol id="i-system" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-upload-bar" viewBox="0 0 24 24"><path d="M12 15V4M7 9l5-5 5 5M5 20h14"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="currentColor" stroke="none"/><path d="m7 12.4 3.4 3.4 6.6-7.6" stroke="#fff" stroke-width="2.6"/></symbol>
+    <symbol id="i-sidebar" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="3"/><path d="M9 4.5v15"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-sigma" viewBox="0 0 24 24"><path d="M17.5 5h-11l6 7-6 7h11"/></symbol>
+    <symbol id="i-acrobat" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M23.63 15.3c-.71-.745-2.166-1.17-4.224-1.17-1.1 0-2.377.106-3.761.354a19.443 19.443 0 0 1-2.307-2.661c-.532-.71-.994-1.49-1.42-2.236.817-2.484 1.207-4.507 1.207-5.962 0-1.632-.603-3.336-2.342-3.336-.532 0-1.065.32-1.349.781-.78 1.384-.425 4.4.923 7.381a60.277 60.277 0 0 1-1.703 4.507c-.568 1.349-1.207 2.733-1.917 4.01C2.834 18.53.314 20.34.03 21.758c-.106.533.071 1.03.462 1.42.142.107.639.533 1.49.533 2.59 0 5.323-4.188 6.707-6.707 1.065-.355 2.13-.71 3.194-.994a34.963 34.963 0 0 1 3.407-.745c2.732 2.448 5.145 2.839 6.352 2.839 1.49 0 2.023-.604 2.2-1.1.32-.64.106-1.349-.213-1.704zm-1.42 1.03c-.107.532-.64.887-1.384.887-.213 0-.39-.036-.604-.071-1.348-.32-2.626-.994-3.903-2.059a17.717 17.717 0 0 1 2.98-.248c.746 0 1.385.035 1.81.142.497.106 1.278.426 1.1 1.348zm-7.524-1.668a38.01 38.01 0 0 0-2.945.674 39.68 39.68 0 0 0-2.52.745 40.05 40.05 0 0 0 1.207-2.555c.426-.994.78-2.023 1.136-2.981.354.603.745 1.207 1.135 1.739a50.127 50.127 0 0 0 1.987 2.378zM10.038 1.46a.768.768 0 0 1 .674-.425c.745 0 .887.851.887 1.526 0 1.135-.355 2.874-.958 4.861-1.03-2.768-1.1-5.074-.603-5.962zM6.134 17.997c-1.81 2.981-3.549 4.826-4.613 4.826a.872.872 0 0 1-.532-.177c-.213-.213-.32-.461-.249-.745.213-1.065 2.271-2.555 5.394-3.904Z"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h3.6l2 2.2h7.4A2.5 2.5 0 0 1 21 9.7v7.8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></symbol>
+    <symbol id="i-stack" viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="2.5"/><path d="M7 4h10"/></symbol>
+    <symbol id="i-check-bold" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10" stroke-width="3.75"/></symbol>
+    <symbol id="i-file-up" viewBox="0 0 24 24"><path d="M13.5 3H7.5C6.12 3 5 4.12 5 5.5V18.5C5 19.88 6.12 21 7.5 21H16.5C17.88 21 19 19.88 19 18.5V8.5L13.5 3Z" stroke-width="1.5"/><path d="M13.5 3V6.5C13.5 7.6 14.4 8.5 15.5 8.5H19" stroke-width="1.5"/><path d="M12 17.5V11.5M12 11.5L9.5 14M12 11.5L14.5 14" stroke-width="1.5"/></symbol>
+    <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
+    <symbol id="i-desmos" viewBox="0 0 24 24"><clipPath id="desmos-clip"><circle cx="12" cy="12" r="12"/></clipPath><circle cx="12" cy="12" r="12" fill="#03a11f" stroke="none"/><g clip-path="url(#desmos-clip)" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"><g transform="translate(1.6 1.2) scale(.86)"><path d="M5.3 -2 Q12.8 36 20.3 -2"/><path d="M-3 14.7q1.83-3.8 3.65 0t3.65 0t3.65 0t3.65 0t3.65 0t3.65 0t3.65 0t3.65 0t3.65 0"/></g></g></symbol>
+    <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></symbol>
+    <symbol id="i-folder-ft" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18 9 12l6-6" stroke-width="2.2"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></symbol>
+    <symbol id="i-trash-ft" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></symbol>
+    <symbol id="i-chevrons" viewBox="0 0 24 24"><path d="m8 9.5 4-4 4 4M8 14.5l4 4 4-4"/></symbol>
+    <symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m10 7 5 5-5 5"/></symbol>
+    <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m14 7-5 5 5 5"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="18" cy="12" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-split" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="3"/><path d="M12 4.5v15"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></symbol>
+  </defs>
+</svg>
+
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar" aria-label="Library">
+    <div class="sb-inner">
+      <div class="sb-top">
+        <div class="brand"><span class="mark"><img class="logo-light" src="static/img/logo/formulae-3d-light.svg" alt=""><img class="logo-dark" src="static/img/logo/formulae-3d-dark.svg" alt=""></span>Formulae</div>
+      </div>
+      <label class="sb-search">
+        <svg class="i sm"><use href="#i-search"/></svg>
+        <span class="sr">Search formulas</span>
+        <input id="search" type="search" placeholder="Search" autocomplete="off">
+      </label>
+      <nav class="sb-scroll" id="sb-nav"></nav>
+      <div class="sb-foot">
+        <button class="text-btn" id="btn-new-course"><svg class="i"><use href="#i-plus-circle"/></svg>New Course</button>
+        <button class="glass-btn lg" id="btn-appearance" aria-label="Appearance: System" title="Appearance" aria-haspopup="menu"><svg class="i"><use href="#i-system"/></svg></button>
+      </div>
+    </div>
+  </aside>
+  <div class="sb-scrim" id="sb-scrim"></div>
+
+  <main class="main" id="main" data-view="grid">
+    <div class="toolbar" id="toolbar">
+      <button class="glass-btn lg" id="btn-sidebar" aria-label="Toggle sidebar" title="Toggle sidebar"><svg class="i"><use href="#i-sidebar"/></svg></button>
+      <span class="tb-title" id="tb-title"></span>
+      <span class="tb-spacer"></span>
+      <div class="glass-group lg" role="group" aria-label="Library file">
+        <button class="icon-btn" id="btn-import" title="Import" aria-label="Import"><svg class="i"><use href="#i-download"/></svg></button>
+        <button class="icon-btn" id="btn-export" title="Export" aria-label="Export"><svg class="i"><use href="#i-upload-bar"/></svg></button>
+      </div>
+      <span id="tb-secondary"></span>
+      <button class="btn btn-primary lg" id="tb-primary"><svg class="i sm"><use href="#i-plus"/></svg><span class="lbl">New Formula</span></button>
+    </div>
+    <div class="scroll" id="scroll">
+      <div class="page" id="page"></div>
+    </div>
+
+    <!-- Formula view: opens over the whole content area, like a flowchart in FlowTracker -->
+    <section class="fv" id="fv" aria-labelledby="vw-heading">
+      <div class="fv-bar">
+        <button class="glass-btn lg" id="fv-back" title="Back" aria-label="Back"><svg class="i"><use href="#i-back"/></svg></button>
+        <span class="tb-spacer"></span>
+        <div class="glass-group lg" role="group" aria-label="Zoom">
+          <button class="icon-btn" id="zm-out" title="Zoom out" aria-label="Zoom out"><svg class="i"><use href="#i-minus"/></svg></button>
+          <span class="count" id="zm-val">100%</span>
+          <button class="icon-btn" id="zm-in" title="Zoom in" aria-label="Zoom in"><svg class="i"><use href="#i-plus"/></svg></button>
+        </div>
+        <div class="glass-group lg" role="group" aria-label="Formula actions">
+          <button class="icon-btn" id="vw-split" title="Open beside…" aria-label="Open beside" aria-haspopup="menu"><svg class="i"><use href="#i-split"/></svg></button>
+          <button class="icon-btn" id="vw-copy" title="Copy LaTeX" aria-label="Copy LaTeX"><svg class="i"><use href="#i-copy"/></svg></button>
+          <button class="icon-btn" id="vw-edit" title="Edit formula" aria-label="Edit formula"><svg class="i"><use href="#i-edit"/></svg></button>
+          <button class="icon-btn danger" id="vw-clear" title="Delete formula" aria-label="Delete formula"><svg class="i"><use href="#i-trash-ft"/></svg></button>
+        </div>
+      </div>
+      <header class="fv-head"><h1 id="vw-heading" contenteditable="plaintext-only" spellcheck="false" title="Rename"></h1><p id="vw-sub"></p></header>
+      <div class="fv-body" id="fv-body"><div class="zoom" id="vw-math"></div></div>
+      <div class="pager glass-group lg" role="group" aria-label="Switch formula">
+        <button class="icon-btn" id="vw-prev" title="Previous formula (←)" aria-label="Previous formula"><svg class="i"><use href="#i-chev-l"/></svg></button>
+        <span class="count" id="vw-pos">1 of 4</span>
+        <button class="icon-btn" id="vw-next" title="Next formula (→)" aria-label="Next formula"><svg class="i"><use href="#i-chev-r"/></svg></button>
+      </div>
+    </section>
+
+    <!-- Graph view: a saved Desmos graph, full size, opened from its card -->
+    <section class="fv gv" id="gv" aria-labelledby="gv-heading">
+      <div class="fv-bar">
+        <button class="glass-btn lg" id="gv-back" title="Back" aria-label="Back"><svg class="i"><use href="#i-back"/></svg></button>
+        <span class="tb-spacer"></span>
+        <div class="glass-group lg" role="group" aria-label="Graph actions">
+          <button class="icon-btn" id="gv-split" title="Open beside…" aria-label="Open beside" aria-haspopup="menu"><svg class="i"><use href="#i-split"/></svg></button>
+          <button class="icon-btn" id="gv-open" title="Open in Desmos" aria-label="Open in Desmos"><svg class="i"><use href="#i-open"/></svg></button>
+          <button class="icon-btn" id="gv-copy" title="Copy link" aria-label="Copy link"><svg class="i"><use href="#i-copy"/></svg></button>
+          <button class="icon-btn danger" id="gv-clear" title="Delete graph" aria-label="Delete graph"><svg class="i"><use href="#i-trash-ft"/></svg></button>
+        </div>
+      </div>
+      <header class="fv-head"><h1 id="gv-heading" contenteditable="plaintext-only" spellcheck="false" title="Rename"></h1><p id="gv-sub"></p></header>
+      <div class="gv-body"><div class="gv-frame" id="gv-frame"></div></div>
+    </section>
+
+    <!-- PDF view: an uploaded PDF, full size in the browser's own PDF viewer (one iframe, as in the real app) -->
+    <section class="fv pv" id="pv" aria-labelledby="pv-heading">
+      <div class="fv-bar">
+        <button class="glass-btn lg" id="pv-back" title="Back" aria-label="Back"><svg class="i"><use href="#i-back"/></svg></button>
+        <span class="tb-spacer"></span>
+        <div class="glass-group lg" role="group" aria-label="PDF actions">
+          <button class="icon-btn" id="pv-split" title="Open beside…" aria-label="Open beside" aria-haspopup="menu"><svg class="i"><use href="#i-split"/></svg></button>
+          <button class="icon-btn" id="pv-open" title="Open in new tab" aria-label="Open in new tab"><svg class="i"><use href="#i-open"/></svg></button>
+          <button class="icon-btn danger" id="pv-clear" title="Delete PDF" aria-label="Delete PDF"><svg class="i"><use href="#i-trash-ft"/></svg></button>
+        </div>
+      </div>
+      <header class="fv-head"><h1 id="pv-heading" contenteditable="plaintext-only" spellcheck="false" title="Rename"></h1><p id="pv-sub"></p></header>
+      <div class="gv-body"><div class="gv-frame" id="pv-frame"><p class="gv-msg" id="pv-msg" hidden></p></div></div>
+    </section>
+    <!-- Split view: two or three items side by side, each pane swappable from its title -->
+    <section class="fv sv" id="sv" aria-label="Split view">
+      <div class="fv-bar">
+        <button class="glass-btn lg" id="sv-back" title="Back" aria-label="Back"><svg class="i"><use href="#i-back"/></svg></button>
+        <span class="sv-title">Split View</span>
+        <span class="tb-spacer"></span>
+        <div class="glass-group lg" role="group" aria-label="Split view actions">
+          <button class="icon-btn" id="sv-add" title="Add a pane" aria-label="Add a pane" aria-haspopup="menu"><svg class="i"><use href="#i-plus"/></svg></button>
+        </div>
+      </div>
+      <div class="sv-panes" id="sv-panes"></div>
+    </section>
+  </main>
+</div>
+
+<!-- Editor sheet -->
+<div class="scrim" id="scrim"></div>
+<section class="sheet" id="sheet-editor" role="dialog" aria-modal="true" aria-labelledby="ed-heading">
+  <header class="sheet-head"><h2 id="ed-heading">New Formula</h2><button type="button" class="icon-btn close-btn lg" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></header>
+  <p class="sheet-sub" id="ed-unit"></p>
+  <div class="sheet-body framed">
+    <div class="editor">
+      <div class="ed-left">
+        <input class="ed-title" id="ed-title" placeholder="Untitled formula" aria-label="Title">
+        <div class="ed-row">
+          <span class="p3 muted">LaTeX</span>
+          <button type="button" class="btn btn-tinted" id="btn-open-ai"><svg class="i sm"><use href="#i-sparkle"/></svg>Generate with AI</button>
+        </div>
+        <textarea class="ed-code" id="ed-code" spellcheck="false" aria-label="LaTeX source" placeholder="\int u\,dv = uv - \int v\,du"></textarea>
+      </div>
+      <div class="ed-right">
+        <div class="lbl p3 muted">Preview</div>
+        <div class="ed-preview" id="ed-preview"></div>
+      </div>
+    </div>
+  </div>
+  <footer class="ft-foot framed"><button type="button" class="btn btn-secondary lg" data-close>Cancel</button><button type="button" class="btn btn-primary lg" id="ed-save">Save</button></footer>
+</section>
+
+
+<!-- AI sheet -->
+<section class="sheet ft" id="sheet-ai" role="dialog" aria-modal="true" aria-labelledby="ai-heading">
+  <header class="sheet-head"><h2 id="ai-heading">Generate with AI</h2><button type="button" class="icon-btn close-btn lg" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></header>
+  <p class="sheet-sub">Describe the topics or attach your notes. The formulas come back as a table you can check before saving.</p>
+  <div class="ft-body">
+    <div class="field"><span class="field-label" id="lbl-key">Gemini API key</span>
+      <div class="key-row" id="key-saved"><span class="ok"><svg class="i"><use href="#i-check-bold"/></svg><span id="key-mask"></span></span><button type="button" class="link-btn" id="key-change">Change</button><button type="button" class="link-btn danger" id="key-remove">Remove</button></div>
+      <div class="key-row edit" id="key-edit" hidden><input class="input" id="key-input" type="password" placeholder="Paste your Gemini API key" autocomplete="off" spellcheck="false" aria-labelledby="lbl-key"><button type="button" class="btn btn-primary lg" id="key-save">Save</button></div>
+      <p class="hint">Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. It stays in this browser and is sent only to Google.</p>
+    </div>
+    <div class="field"><span class="field-label" id="lbl-model">Model</span>
+      <button type="button" class="dd" id="dd" aria-haspopup="listbox" aria-controls="dd-pop" aria-expanded="false" aria-labelledby="lbl-model">
+        <span class="dd-val"><span class="dd-name" id="dd-name"></span><span class="dd-note" id="dd-note"></span></span><span class="dd-chev" aria-hidden="true"><svg class="i"><use href="#i-chevrons"/></svg></span></button>
+      <span class="hint">If a model is out of quota or unavailable, the other free models are tried in order.</span>
+    </div>
+    <label class="field"><span>Notes</span><textarea class="textarea" id="ai-notes" rows="4" placeholder="e.g. Integration techniques: parts, trig substitution and partial fractions, with the identities for each."></textarea></label>
+    <label class="field"><span>YouTube links</span><textarea class="textarea short" id="ai-yt" rows="2" placeholder="One link per line"></textarea><span class="hint">Videos need captions.</span></label>
+    <div class="field"><span class="field-label">Attachments</span>
+      <div class="uploader" id="ai-up"></div>
+      <span class="hint">Word files aren’t supported. Export them to PDF first.</span>
+    </div>
+  </div>
+  <p class="ai-err" id="ai-err" role="alert" hidden></p>
+  <footer class="ft-foot"><button type="button" class="btn btn-secondary lg" data-close>Cancel</button><button type="button" class="btn btn-primary lg" id="ai-run"><svg class="i sm"><use href="#i-sparkle"/></svg><span id="ai-run-label">Generate</span></button></footer>
+</section>
+
+<!-- Small sheets (FlowTracker: New Category / New Flowchart / Move) -->
+<section class="sheet ft small" id="sheet-course" role="dialog" aria-modal="true" aria-labelledby="sheet-course-h">
+  <header class="sheet-head"><h2 id="sheet-course-h">New Course</h2><button type="button" class="icon-btn close-btn lg" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></header>
+  <div class="ft-body">
+    <label class="field"><span>Name</span><input class="input" data-name placeholder="e.g. Linear Algebra" autocomplete="off"></label>
+    <div class="field"><span class="field-label">Colour</span><div class="swatches" role="radiogroup" aria-label="Colour" id="swatches"></div></div>
+    <div class="preview-row" style="--c:#8b5cf6"><span class="dot"></span><span data-preview>New Course</span><span class="muted" data-count>0</span></div>
+  </div>
+  <footer class="ft-foot"><button type="button" class="btn btn-secondary lg" data-close>Cancel</button><button type="button" class="btn btn-primary lg" data-submit>Create</button></footer>
+</section>
+<section class="sheet ft small" id="sheet-unit" role="dialog" aria-modal="true" aria-labelledby="sheet-unit-h">
+  <header class="sheet-head"><h2 id="sheet-unit-h">New Unit</h2><button type="button" class="icon-btn close-btn lg" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></header>
+  <div class="ft-body">
+    <label class="field"><span>Name</span><input class="input" data-name placeholder="e.g. Integration Techniques" autocomplete="off"></label>
+    <div class="field"><span class="field-label">Course</span><div class="chips" role="radiogroup" aria-label="Course" id="unit-chips"></div></div>
+    <p class="hint">Starts empty. Write formulas in LaTeX, or generate a table with AI from your notes, files or a lecture video.</p>
+  </div>
+  <footer class="ft-foot"><button type="button" class="btn btn-secondary lg" data-close>Cancel</button><button type="button" class="btn btn-primary lg" data-submit>Create</button></footer>
+</section>
+<section class="sheet ft small" id="sheet-pdf" data-wide role="dialog" aria-modal="true" aria-labelledby="sheet-pdf-h">
+  <header class="sheet-head"><h2 id="sheet-pdf-h">Upload PDF</h2><button type="button" class="icon-btn close-btn lg" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></header>
+  <div class="ft-body">
+    <div class="uploader" id="pdf-up"></div>
+    
+  </div>
+  <footer class="ft-foot"><button type="button" class="btn btn-secondary lg" data-close>Cancel</button><button type="button" class="btn btn-primary lg" data-submit>Upload</button></footer>
+</section>
+<section class="sheet ft small" id="sheet-link" role="dialog" aria-modal="true" aria-labelledby="sheet-link-h">
+  <header class="sheet-head"><h2 id="sheet-link-h">Add Link</h2><button type="button" class="icon-btn close-btn lg" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></header>
+  <div class="ft-body">
+    <label class="field"><span>Name</span><input class="input" data-name placeholder="e.g. Physics I Syllabus" autocomplete="off"></label>
+    <label class="field"><span>Link</span><input class="input" type="url" placeholder="https://" autocomplete="off" spellcheck="false"></label>
+  </div>
+  <footer class="ft-foot"><button type="button" class="btn btn-secondary lg" data-close>Cancel</button><button type="button" class="btn btn-primary lg" data-submit>Add</button></footer>
+</section>
+<section class="sheet ft small" id="sheet-graph" role="dialog" aria-modal="true" aria-labelledby="sheet-graph-h">
+  <header class="sheet-head"><h2 id="sheet-graph-h">Add Graph</h2><button type="button" class="icon-btn close-btn lg" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></header>
+  <div class="ft-body">
+    <label class="field"><span>Name</span><input class="input" data-name placeholder="e.g. Polar Rose" autocomplete="off"></label>
+    <label class="field"><span>Desmos link</span><input class="input" type="url" placeholder="https://www.desmos.com/calculator/…" autocomplete="off" spellcheck="false"></label>
+    <p class="hint">Paste the link from Share in Desmos. The graph opens inside Formulae.</p>
+  </div>
+  <footer class="ft-foot"><button type="button" class="btn btn-secondary lg" data-close>Cancel</button><button type="button" class="btn btn-primary lg" data-submit>Add</button></footer>
+</section>
+<section class="sheet ft small" id="sheet-move" role="dialog" aria-modal="true" aria-labelledby="sheet-move-h">
+  <header class="sheet-head"><h2 id="sheet-move-h">Move to Unit</h2><button type="button" class="icon-btn close-btn lg" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></header>
+  <p class="sheet-sub" id="move-name"></p>
+  <div class="ft-body">
+    <div class="chips" role="radiogroup" aria-label="Unit" id="move-chips"></div>
+  </div>
+  <footer class="ft-foot"><button type="button" class="btn btn-secondary lg" data-close>Cancel</button><button type="button" class="btn btn-primary lg" data-submit>Move</button></footer>
+</section>
+
+<section class="sheet ft small" id="sheet-name" role="dialog" aria-modal="true" aria-labelledby="sheet-name-h">
+  <header class="sheet-head"><h2 id="sheet-name-h">Rename</h2><button type="button" class="icon-btn close-btn lg" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></header>
+  <div class="ft-body">
+    <label class="field"><span id="name-label">Name</span><input class="input" data-name autocomplete="off"></label>
+  </div>
+  <footer class="ft-foot"><button type="button" class="btn btn-secondary lg" data-close>Cancel</button><button type="button" class="btn btn-primary lg" data-submit>Save</button></footer>
+</section>
+
+<!-- Alert -->
+<div class="scrim alert-scrim" id="alert-scrim"></div>
+<div class="alert" id="alert" role="alertdialog" aria-modal="true" aria-labelledby="al-h" aria-describedby="al-p">
+  <div class="alert-body"><span class="alert-icon"><svg class="i"><use href="#i-trash-ft"/></svg></span><h2 id="al-h"></h2><p id="al-p"></p></div>
+  <div class="alert-foot"><button type="button" class="btn btn-secondary lg" data-alert-close>Cancel</button><button type="button" class="btn btn-danger lg" id="al-ok">Delete</button></div>
+</div>
+
+<div class="menu" id="menu" role="menu"></div>
+<div class="dd-pop" id="dd-pop" role="listbox" aria-labelledby="lbl-model"></div>
+<input type="file" id="file-import" accept=".json,application/json" hidden>
+<div class="toast" id="toast" role="status" aria-live="polite"><svg class="i"><use href="#i-check-circle"/></svg><span></span></div>
+
+<!-- Scripts (order matters): data layer first, then the UI -->
+<script src="static/js/library.js"></script>
+<script src="static/js/pdf-store.js"></script>
+<script src="static/js/app.js"></script>
+</body>
+</html>

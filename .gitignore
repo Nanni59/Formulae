@@ -1,0 +1,15 @@
+# Local tooling and working notes (not part of the site)
+.claude/
+.app-check/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
