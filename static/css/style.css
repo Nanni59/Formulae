@@ -210,7 +210,7 @@ svg.i.sm { width: 16px; height: 16px; }
 .empty { text-align: center; padding: 96px 20px; }
 .empty svg.mark { width: 64px; height: 64px; opacity: 0.9; }
 .empty p { margin: 8px auto 24px; max-width: 36ch; }
-.empty .btns { display: inline-flex; gap: 12px; }
+.empty .btns { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 
 /* ============================================================ Sheets (modal) */
 .scrim {
@@ -414,11 +414,7 @@ body { background: var(--bg); }
   backdrop-filter: blur(24px) saturate(190%); -webkit-backdrop-filter: blur(24px) saturate(190%);
   box-shadow: inset 0 1px 0 var(--glass-edge), inset 0 0 0 1px var(--glass-line), var(--glass-depth); }
 #btn-sidebar { width: 40px; height: 40px; border-radius: 999px; color: var(--ink); }
-.tb-title { height: 40px; display: inline-flex; align-items: center; padding: 0 16px; border-radius: 999px; }
-
-#tb-primary { height: 40px; padding: 0 18px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 16px color-mix(in srgb, var(--tint) 30%, transparent); }
-#tb-secondary .btn { height: 40px; background: var(--glass); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-  box-shadow: inset 0 1px 0 var(--glass-edge), inset 0 0 0 1px var(--glass-line); }
+.tb-title { display: inline-flex; align-items: center; padding: 0 16px; border-radius: 999px; }
 
 /* Content: solid, concentric radii, no shadow */
 .course { border-radius: var(--r-tile); }
@@ -542,11 +538,9 @@ body { background: var(--bg); }
   background: var(--btn-glass); border: 1px solid var(--btn-edge); box-shadow: inset 0 1px 0 var(--glass-hi);
   backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
-#tb-secondary .btn-secondary.lg { height: 44px; padding: 0 18px; }
 .btn-secondary.lg:hover { background: var(--btn-glass-hover); }
 .page .btn-secondary.lg { background: var(--fill); }   /* on a plain surface, glass reads as soft grey */
 .page .btn-secondary.lg:hover { background: var(--fill-hover); }
-#tb-primary { height: 44px; padding: 0 20px; box-shadow: none; }
 .toolbar { left: 284px; height: 68px; padding: 16px 24px 8px; }   /* FlowTracker #app .toolbar */
 .page { margin-left: 284px; }
 .scroll { padding-top: 72px; }
@@ -608,14 +602,21 @@ body { background: var(--bg); }
 .glass-group .icon-btn:disabled { opacity: .3; cursor: default; background: none; }
 .glass-group .icon-btn svg { width: 20px; height: 20px; }
 
-/* New Formula = FlowTracker's New Flowchart: 36px pill, 15px medium, plus icon leading */
+/* New Formula: 15px medium pill, plus icon leading */
 #tb-primary.btn-primary {
-  height: 36px; padding: 0 16px; gap: 6px; border-radius: 980px;
-  font-size: 15px; font-weight: 500; box-shadow: none; transition: background .2s;
+  padding: 0 16px; gap: 6px; border-radius: 980px;
+  font-size: 15px; font-weight: 500; transition: background .2s;
 }
 #tb-primary.btn-primary svg { width: 16px; height: 16px; stroke-width: 2.4; }
-#tb-secondary .btn-secondary.lg { height: 36px; padding: 0 16px; font-weight: 500; }
+#tb-secondary .btn-secondary.lg { padding: 0 16px; font-weight: 500; }
 .toolbar { gap: 8px; }
+
+/* Standard glass scale shared with Lumen and Photero: every large button, toolbar pill and
+   glass group on the page is 44px (a group is 3px padding + 1px edge around 36px buttons).
+   Sheets keep their own 36px footer buttons (.sheet .btn.lg is more specific). */
+.btn.lg, .toolbar .tb-title, .glass-group.lg { height: 44px; }
+/* Solid blue reads larger than glass at the same height, so it gets the glass buttons' 1px edge. */
+.btn-primary.lg { border: 1px solid var(--btn-edge); background-clip: padding-box; box-shadow: inset 0 1px 0 var(--glass-hi); }
 
 /* Viewer pager: bottom-right glass group, "‹ 2 of 4 ›", wraps round */
 .pager .count { padding: 0 6px; font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -632,9 +633,6 @@ body { background: var(--bg); }
 .toast.show { opacity: 1; visibility: visible; transform: translate(-50%, 0); transition: opacity .2s, transform .3s cubic-bezier(.2,.8,.2,1); }
 .toast svg { width: 18px; height: 18px; color: var(--green); }
 
-@media (max-width: 900px) {
-  #tb-primary.btn-primary { height: 44px; }
-}
 /* Phones keep the primary label like FlowTracker ("New Flowchart" at 390px); only a toolbar that also carries
    secondary buttons (PDFs: Add Link + Upload PDF) collapses them to icons so everything fits */
 @media (max-width: 560px) {
@@ -916,7 +914,6 @@ body { background: var(--bg); }
 #tb-secondary { display: contents; }   /* its buttons join the toolbar row, so an empty holder adds no extra 8px gap */
 #tb-secondary .btn-secondary.lg { gap: 6px; }
 #tb-secondary .btn-secondary.lg svg { width: 16px; height: 16px; }
-@media (max-width: 900px) { #tb-secondary .btn-secondary.lg { height: 44px; } }
 @media (max-width: 560px) {
   #tb-secondary .btn-secondary.lg { width: 44px; padding: 0; font-size: 0; gap: 0; }
 }
