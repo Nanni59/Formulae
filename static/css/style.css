@@ -565,7 +565,7 @@ body { background: var(--bg); }
 .menu button.danger, .menu button.danger svg { color: var(--red); }
 .menu button.danger:hover { background: var(--btn-item-hover); color: var(--red); }
 .menu .mi-check { margin-left: auto; padding-left: 16px; display: inline-flex; }
-.menu .mi-check svg { width: 14px; height: 14px; color: var(--tint); }
+.menu .mi-check svg { width: 14px; height: 14px; color: var(--check); }
 .menu hr { margin: 5px 10px; }
 
 /* Scrim: dimmed and lightly blurred page behind sheets */
@@ -631,7 +631,7 @@ body { background: var(--bg); }
   transition: opacity .2s, transform .3s cubic-bezier(.2,.8,.2,1), visibility 0s .3s;
 }
 .toast.show { opacity: 1; visibility: visible; transform: translate(-50%, 0); transition: opacity .2s, transform .3s cubic-bezier(.2,.8,.2,1); }
-.toast svg { width: 18px; height: 18px; color: var(--green); }
+.toast svg { width: 18px; height: 18px; color: var(--check); }
 
 /* Phones keep the primary label like FlowTracker ("New Flowchart" at 390px); only a toolbar that also carries
    secondary buttons (PDFs: Add Link + Upload PDF) collapses them to icons so everything fits */
@@ -694,7 +694,7 @@ body { background: var(--bg); }
 .card:hover .actions, .card:focus-within .actions { opacity: 1; transform: none; }
 .card .actions .icon-btn { width: 32px; height: 32px; border-radius: 999px; background: var(--btn-glass); border: 1px solid var(--btn-edge); color: var(--ink); }
 .card .actions .icon-btn:hover { background: var(--btn-glass-hover); }
-.card .actions .icon-btn.done { color: var(--green); }
+.card .actions .icon-btn.done { color: var(--check); }
 @media (hover: none) { .card .actions { opacity: 1; transform: none; } }
 
 /* Sheets: plain surface, hairline edge, no drop shadow; title left, round X right */
@@ -741,38 +741,21 @@ body { background: var(--bg); }
 .key-row.edit .btn { height: 44px; }
 .key-row .ok { display: inline-flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 .key-row .ok > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.key-row .ok svg { width: 18px; height: 18px; color: var(--green); flex: none; }
+.key-row .ok svg { width: 18px; height: 18px; flex: none; }
 .link-btn { height: 36px; padding: 0 12px; border: 0; border-radius: 9px; background: none; color: var(--tint); font: inherit; font-size: 15px; cursor: pointer; }
 .link-btn:hover { background: var(--fill); }
 .link-btn.danger { color: var(--red); }
-.dd {
-  width: 100%; height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 14px; border-radius: 12px;
-  background: var(--field); border: 1px solid transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer;
-  transition: border-color .15s, background .15s;
+.select-btn {   /* Lumen's pop-up button (Select.jsx): a capsule that opens the app menu */
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; height: 36px; min-width: 120px; max-width: 100%; padding: 0 10px 0 14px;
+  border: 0; border-radius: 999px; background: var(--fill); color: var(--ink); font: inherit; font-size: 13px; font-weight: 500; cursor: default; transition: background .15s ease;
 }
-.dd:hover { background: var(--fill); }
-.dd[aria-expanded="true"], .dd:focus-visible { border-color: var(--tint); background: var(--surface); outline: none; }
-.dd-val { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; white-space: nowrap; overflow: hidden; }
-.dd-name { font-size: 15px; font-weight: 500; }
-.dd-note { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
-.dd-chev { flex: none; display: grid; place-items: center; }
-.dd-chev svg { width: 16px; height: 16px; color: var(--muted); }
-.dd-pop {
-  position: fixed; z-index: 215; padding: 6px; border-radius: 14px; max-height: 320px; overflow-y: auto;
-  background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--sep);
-  backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%);
-  opacity: 0; visibility: hidden; transform: translateY(-4px) scale(.98); transform-origin: top center;
-  transition: opacity .14s, transform .18s cubic-bezier(.2,.8,.2,1), visibility 0s .18s;
-}
-.dd-pop.open { opacity: 1; visibility: visible; transform: none; transition: opacity .14s, transform .18s cubic-bezier(.2,.8,.2,1); }
-.dd-h { padding: 8px 10px 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
-.dd-opt { display: grid; grid-template-columns: 16px 1fr; align-items: center; column-gap: 10px; width: 100%; padding: 7px 10px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
-.dd-opt svg { width: 14px; height: 14px; color: var(--tint); opacity: 0; }
-.dd-opt[aria-selected="true"] svg { opacity: 1; }
-.dd-opt b { font-size: 14px; font-weight: 500; }
-.dd-opt small { grid-column: 2; font-size: 12px; color: var(--muted); }
-.dd-opt:hover { background: var(--btn-item-hover); }
-.dd-pop hr { border: 0; height: 1px; background: var(--sep); margin: 5px 10px; }
+.select-btn:hover:not(:disabled), .select-btn[aria-expanded="true"] { background: var(--fill-hover); }
+.select-btn:focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; }
+.select-btn:disabled { opacity: .5; }
+.select-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-btn svg.i { width: 14px; height: 14px; flex: none; color: var(--muted); transition: transform .2s var(--ease-out); }
+.select-btn[aria-expanded="true"] svg.i { transform: rotate(180deg); }
+.menu.select-menu { z-index: 215; }
 
 @media (max-width: 900px) {
   .sheet.ft { width: 100vw; max-height: calc(100vh - 24px); top: auto; bottom: 0; border-radius: 24px 24px 0 0; transform: translate(-50%, 8%); }
@@ -804,7 +787,7 @@ body { background: var(--bg); }
 .fv-bar { flex: none; display: flex; align-items: center; gap: 8px; padding: 16px 24px 8px; }
 .fv-bar .glass-group .count { padding: 0 4px; min-width: 48px; text-align: center; font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
 .icon-btn.danger:hover { color: var(--red); }
-.glass-group .icon-btn.done { color: var(--green); }
+.glass-group .icon-btn.done { color: var(--check); }
 .fv-head { flex: none; padding: 4px 32px 20px; min-width: 0; }
 .fv-head h1 {
   margin: 0 0 0 -8px; padding: 0 8px; border-radius: 10px; width: fit-content; max-width: 100%;
@@ -834,9 +817,7 @@ body { background: var(--bg); }
 /* ================================================================
    ROUND 5 — card sizing, file cards, small sheets (FlowTracker)
    ================================================================ */
-:root { --acrobat: #d70015; --green-fill: #34c759; }           /* Acrobat red stays the same in both appearances */
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --green-fill: #30d158; } }
-:root[data-theme="dark"] { --green-fill: #30d158; }
+:root { --acrobat: #d70015; --check: #0f9e0e; }   /* Acrobat red and the checkmark green stay the same in both appearances */
 
 /* Content fills the whole width beside the sidebar, as in FlowTracker (no 1160px cap) */
 .page > * { max-width: none; }
@@ -851,7 +832,7 @@ body { background: var(--bg); }
 .card-ico svg[class] { width: 22px; height: 22px; }   /* FlowTracker card glyph */
 
 /* Key row: FlowTracker's bold green check and masked key */
-.key-row .ok svg { color: var(--green-fill); stroke-width: 3.75; }
+.key-row .ok svg { color: var(--check); stroke-width: 3.75; }
 .key-row .ok > span { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 
 /* Small FlowTracker sheets */

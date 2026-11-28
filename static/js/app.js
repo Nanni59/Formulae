@@ -350,7 +350,7 @@ function renderMain() {
 function emptyState(title, text, actions) {
   const d = document.createElement('div'); d.className = 'empty';
   d.innerHTML = `<h2 class="h3"></h2><p class="p2 muted"></p>` +
-    (actions ? `<div class="btns"><button class="btn btn-secondary lg" data-ai>${icon('i-sparkle')}Generate with AI</button><button class="btn btn-primary lg" data-new>${icon('i-plus')}New Formula</button></div>` : '');
+    (actions ? `<div class="btns"><button class="btn btn-secondary lg" data-ai>${icon('i-ai')}Generate with AI</button><button class="btn btn-primary lg" data-new>${icon('i-plus')}New Formula</button></div>` : '');
   d.querySelector('h2').textContent = title; d.querySelector('p').textContent = text;
   d.querySelector('[data-new]')?.addEventListener('click', () => openEditor());
   d.querySelector('[data-ai]')?.addEventListener('click', () => { openEditor(); setTimeout(openAiSheet, 120); });
@@ -563,13 +563,17 @@ document.querySelectorAll('[data-alert-close]').forEach(b => b.onclick = hideAle
 $('#al-ok').onclick = () => { hideAlert(); alertOk?.(); };
 $('#alert-scrim').onclick = hideAlert;
 
-function openMenu(anchor, items, head) {
-  const m = $('#menu'); m.innerHTML = '';
+// opts.select: Lumen's pop-up button menu (at least the button's width, with aria-expanded on the button while open)
+let menuOwner = null;
+function openMenu(anchor, items, head, opts = {}) {
+  const m = $('#menu'); m.innerHTML = ''; closeMenu();
+  m.classList.toggle('select-menu', !!opts.select); m.style.minWidth = opts.select ? anchor.offsetWidth + 'px' : '';
+  if (opts.select) { menuOwner = anchor; anchor.setAttribute('aria-expanded', 'true'); }
   if (head) { const h = document.createElement('div'); h.className = 'menu-h'; h.textContent = head; m.append(h); }
   items.forEach(it => {
     if (it === '-') { m.append(document.createElement('hr')); return; }
     if (typeof it === 'string') { const h = document.createElement('div'); h.className = 'menu-h'; h.textContent = it; m.append(h); return; }
-    const [label, cls, fn, ico, checked] = it; const b = document.createElement('button');
+    const [label, cls, fn, ico, checked, tip] = it; const b = document.createElement('button'); if (tip) b.title = tip;
     b.setAttribute('role', checked === undefined ? 'menuitem' : 'menuitemradio'); if (cls) b.className = cls;
     if (ico) b.insertAdjacentHTML('beforeend', icon(ico));
     const l = document.createElement('span'); l.className = 'mi-l'; l.textContent = label; b.append(l);
@@ -583,7 +587,12 @@ function openMenu(anchor, items, head) {
   m.style.top = Math.max(8, r.bottom + 4 + h > innerHeight ? r.top - h - 4 : r.bottom + 4) + 'px';
   m.querySelector('button')?.focus({ preventScroll: true });
 }
-function closeMenu() { $('#menu').classList.remove('open'); }
+function closeMenu() { $('#menu').classList.remove('open'); menuOwner?.setAttribute('aria-expanded', 'false'); menuOwner = null; }
+$('#menu').addEventListener('keydown', e => {   // arrow keys move between items, as in Lumen
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+  e.preventDefault(); const bs = [...e.currentTarget.querySelectorAll('button:not(:disabled)')], i = bs.indexOf(document.activeElement);
+  bs[e.key === 'Home' ? 0 : e.key === 'End' ? bs.length - 1 : (i + (e.key === 'ArrowDown' ? 1 : -1) + bs.length) % bs.length]?.focus();
+});
 document.addEventListener('click', e => { if (!e.target.closest('#menu')) closeMenu(); });
 
 let toastTimer;
@@ -833,23 +842,19 @@ $('#key-save').onclick = () => {
 };
 $('#key-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#key-save').click(); } });
 
-const drawModel = () => { const m = modelById(model); $('#dd-name').textContent = m.name; $('#dd-note').textContent = m.note; };
-const closeDD = () => { $('#dd-pop').classList.remove('open'); $('#dd').setAttribute('aria-expanded', 'false'); };
-$('#dd').onclick = e => {
-  e.stopPropagation(); const pop = $('#dd-pop');
-  if (pop.classList.contains('open')) return closeDD();
-  pop.innerHTML = MODELS.map((x, i) => x.h
-    ? `${i ? '<hr>' : ''}<div class="dd-h" role="presentation">${x.h}</div>`
-    : `<button type="button" class="dd-opt" role="option" aria-selected="${x.id === model}" data-id="${x.id}">${icon('i-check')}<b>${x.name}</b><small>${x.note}</small></button>`).join('');
-  pop.querySelectorAll('.dd-opt').forEach(o => o.onclick = ev => { ev.stopPropagation(); model = o.dataset.id; store.set('formulae_gemini_model', model); drawModel(); closeDD(); $('#dd').focus(); });
-  const r = $('#dd').getBoundingClientRect();
-  pop.style.left = r.left + 'px'; pop.style.width = r.width + 'px';
-  pop.classList.add('open'); $('#dd').setAttribute('aria-expanded', 'true');
-  const h = pop.offsetHeight;   // opens upward when there is no room below, like FlowTracker
-  const up = r.bottom + 6 + h > innerHeight - 8; pop.classList.toggle('up', up);
-  pop.style.top = (up ? r.top - 6 - h : r.bottom + 6) + 'px';
+// Model picker: Lumen's pop-up button. It opens the app menu with a check on the current model;
+// arrow keys on the closed button step through the models, as a native select does (Alt+arrow opens it).
+const drawModel = () => { const m = modelById(model); $('#dd-name').textContent = m.name; $('#dd').title = m.note; };
+const pickModel = id => { model = id; store.set('formulae_gemini_model', model); drawModel(); };
+const openModels = () => openMenu($('#dd'), MODELS.map(x => x.h
+  || [x.name, '', () => { pickModel(x.id); $('#dd').focus({ preventScroll: true }); }, null, x.id === model, x.note]), null, { select: true });
+$('#dd').onclick = e => { e.stopPropagation(); if (menuOwner === e.currentTarget) closeMenu(); else openModels(); };
+$('#dd').onkeydown = e => {
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  e.preventDefault(); if (e.altKey) return openModels();
+  const ids = MODELS.filter(x => x.id).map(x => x.id), i = ids.indexOf(model), next = ids[Math.max(0, Math.min(ids.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))];
+  if (next !== model) pickModel(next);
 };
-document.addEventListener('click', e => { if (!e.target.closest('#dd-pop')) closeDD(); });
 
 const aiUp = makeUploader($('#ai-up'), {
   title: 'Click or drag your notes here', overTitle: 'Drop to attach', desc: 'PDF, Markdown, text or images. One file or many.',
@@ -897,7 +902,7 @@ async function runAi() {
       if (sheetStack[sheetStack.length - 1]?.id === 'sheet-ai') closeTop();
       toast(r.model === model ? 'Table generated. Check it, then Save.' : `Table generated with ${modelById(r.model)?.name || r.model}`);
     };
-    if ($('#ed-code').value.trim()) showAlert('Replace the current LaTeX?', 'The editor already has a formula. The generated table will replace it.', apply, 'Replace', 'i-sparkle');
+    if ($('#ed-code').value.trim()) showAlert('Replace the current LaTeX?', 'The editor already has a formula. The generated table will replace it.', apply, 'Replace', 'i-ai');
     else apply();
   } catch (err) {
     aiError(err.message || 'Something went wrong while generating.');
@@ -1127,8 +1132,7 @@ $('#search').addEventListener('input', e => {
 addEventListener('keydown', e => {
   const typing = /INPUT|TEXTAREA/.test(document.activeElement.tagName) || document.activeElement.isContentEditable;
   if (e.key === 'Escape') {
-    if ($('#menu').classList.contains('open')) closeMenu();
-    else if ($('#dd-pop').classList.contains('open')) closeDD();
+    if ($('#menu').classList.contains('open')) { const o = menuOwner; closeMenu(); o?.focus({ preventScroll: true }); }
     else if ($('#alert').classList.contains('open')) hideAlert();
     else if (sheetStack.length) closeTop();
     else ({ formula: closeViewer, graph: closeGraph, pdf: closePdf, split: closeSplit })[view()]?.();
